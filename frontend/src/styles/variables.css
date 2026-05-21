@@ -1,0 +1,58 @@
+:root {
+  /* backgrounds */
+  --bg-base:     #080f1a;
+  --bg-surface:  #0d1b2a;
+  --bg-card:     #112236;
+  --bg-elevated: #163048;
+  --bg-hover:    #1c3a57;
+
+  /* borders */
+  --border:        rgba(148, 163, 184, 0.09);
+  --border-subtle: rgba(148, 163, 184, 0.05);
+  --border-active: rgba(148, 163, 184, 0.22);
+
+  /* text */
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
+  --text-dim:       #2d3f55;
+
+  /* sensor accents */
+  --c-temp:  #f59e0b;
+  --c-humid: #38bdf8;
+  --c-light: #a3e635;
+  --c-auto:  #818cf8;
+
+  /* semantic */
+  --c-ok:      #22c55e;
+  --c-warn:    #f59e0b;
+  --c-danger:  #ef4444;
+  --c-inactive: #475569;
+
+  /* typography */
+  --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* spacing */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+
+  /* radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+
+  /* transitions */
+  --t-fast: 120ms ease;
+  --t-mid:  220ms ease;
+
+  /* sidebar width */
+  --sidebar-w: 200px;
+  --header-h:  52px;
+}
