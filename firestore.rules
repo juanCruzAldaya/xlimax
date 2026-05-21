@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /readings/{docId} {
+      // Lectura pública — el dashboard no requiere login
+      allow read: if true;
+
+      // Escritura: solo desde el backend con Firebase Admin SDK
+      // (desactivar antes de producción si no hay Admin SDK configurado)
+      // TODO: cambiar a `if request.auth != null` cuando se sume auth
+      allow write: if true;
+    }
+
+  }
+}

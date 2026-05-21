@@ -1,4 +1,4 @@
-export default function Header({ lastReading }) {
+export default function Header({ lastReading, live }) {
   const timeStr = lastReading
     ? new Date(lastReading.epoch).toLocaleString('es-AR', {
         day: '2-digit', month: 'short',
@@ -15,10 +15,17 @@ export default function Header({ lastReading }) {
 
       <div className="header-meta">
         <span className="header-last">Última lectura: {timeStr} ART</span>
-        <div className="status-badge status-badge--offline">
-          <span className="status-dot" />
-          MOCK
-        </div>
+        {live ? (
+          <div className="status-badge">
+            <span className="status-dot status-dot--online" />
+            LIVE
+          </div>
+        ) : (
+          <div className="status-badge status-badge--offline">
+            <span className="status-dot" />
+            MOCK
+          </div>
+        )}
       </div>
     </header>
   )

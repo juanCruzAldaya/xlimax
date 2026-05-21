@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { readings, SENSOR_CONFIG } from './data/mockData'
+import { SENSOR_CONFIG } from './data/mockData'
+import { useReadings } from './hooks/useReadings'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import SensorCard from './components/SensorCard'
@@ -19,8 +20,10 @@ export default function App() {
   const [rangeIdx,   setRangeIdx]   = useState(2)
   const [focusSensor, setFocusSensor] = useState('t')
 
+  const { data: readings, live } = useReadings()
+
   const range       = RANGES[rangeIdx]
-  const visibleData = useMemo(() => readings.slice(-range.points), [range.points])
+  const visibleData = useMemo(() => readings.slice(-range.points), [readings, range.points])
   const lastReading = readings[readings.length - 1]
 
   const sensorView = view === 't' || view === 'h' || view === 'l'
@@ -33,7 +36,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header lastReading={lastReading} />
+      <Header lastReading={lastReading} live={live} />
 
       <div className="app-body">
         <Sidebar activeView={view} onNavigate={setView} />
