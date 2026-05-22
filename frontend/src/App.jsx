@@ -8,6 +8,7 @@ import ChartPanel from './components/ChartPanel'
 import StatsPanel from './components/StatsPanel'
 import AutomationPanel from './components/AutomationPanel'
 import ControlPanel from './components/ControlPanel'
+import BottomNav from './components/BottomNav'
 
 const RANGES = [
   { label: '1h',  points: 12  },
@@ -41,6 +42,7 @@ export default function App() {
 
       <div className="app-body">
         <Sidebar activeView={view} onNavigate={setView} />
+        <BottomNav activeView={view} onNavigate={setView} />
 
         <main className="app-main">
 

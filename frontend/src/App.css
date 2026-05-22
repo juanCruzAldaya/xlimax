@@ -796,6 +796,138 @@ html, body, #root {
   font-family: var(--font-mono);
 }
 
+/* ── Bottom nav (mobile only) ──────────────────────── */
+.bottom-nav {
+  display: none;
+}
+
+/* ── Responsive — mobile ───────────────────────────── */
+@media (max-width: 768px) {
+
+  /* sidebar oculto, bottom nav visible */
+  .sidebar     { display: none; }
+  .bottom-nav  { display: flex; }
+
+  /* main sin margen lateral del sidebar */
+  .app-main {
+    padding: var(--s4);
+    padding-bottom: calc(64px + var(--s4));  /* espacio para bottom nav */
+  }
+
+  /* sensor cards: 1 columna en móvil */
+  .view-cards {
+    grid-template-columns: 1fr;
+  }
+
+  /* card horizontal en móvil: valor + sparkline en fila */
+  .sensor-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    column-gap: var(--s4);
+    padding: var(--s3) var(--s4);
+  }
+
+  .sensor-card__header    { grid-column: 1; grid-row: 1; }
+  .sensor-card__value-row { grid-column: 1; grid-row: 2; margin-bottom: 0; }
+  .sensor-card__footer    { grid-column: 1; grid-row: 3; margin-top: var(--s2); }
+  .sensor-card__sparkline {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    width: 90px;
+    height: auto;
+    align-self: center;
+  }
+
+  .sensor-card__value { font-size: 24px; }
+
+  /* stats: 2 columnas */
+  .stats-grid  { grid-template-columns: repeat(2, 1fr); }
+  .stats-days  { grid-template-columns: 1fr; }
+
+  /* actuadores: 2 columnas en móvil */
+  .actuator-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* reglas: 1 columna */
+  .rules-grid { grid-template-columns: 1fr; }
+
+  /* chart un poco más bajo */
+  .chart-panel__area { height: 190px; }
+  .chart-panel { padding: var(--s4) var(--s3) var(--s3); }
+
+  /* header compacto */
+  .header { padding: 0 var(--s4); }
+  .header-last { display: none; }
+  .header-device { display: none; }
+
+  /* views sin max-width fijo */
+  .view, .automation-panel, .control-panel { max-width: 100%; }
+
+  /* control footer compacto */
+  .control-footer { flex-direction: column; align-items: flex-start; gap: var(--s2); }
+}
+
+/* ── Bottom nav estilos ────────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  flex-direction: row;
+  align-items: stretch;
+  z-index: 100;
+  padding: 0 var(--s1);
+  /* safe area para iPhones con notch inferior */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color var(--t-fast);
+  position: relative;
+  padding: var(--s1) 0;
+  min-width: 0;
+}
+
+.bottom-nav__item--active {
+  color: var(--text-primary);
+}
+
+.bottom-nav__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.bottom-nav__label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.bottom-nav__dot {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 14px);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
 /* ── Misc utilities ────────────────────────────────── */
 .section-label {
   font-size: 11px;
