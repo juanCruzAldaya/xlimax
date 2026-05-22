@@ -7,6 +7,7 @@ import SensorCard from './components/SensorCard'
 import ChartPanel from './components/ChartPanel'
 import StatsPanel from './components/StatsPanel'
 import AutomationPanel from './components/AutomationPanel'
+import ControlPanel from './components/ControlPanel'
 
 const RANGES = [
   { label: '1h',  points: 12  },
@@ -95,6 +96,11 @@ export default function App() {
 
               <StatsPanel data={visibleData} sensorKey={view} showDays />
             </div>
+          )}
+
+          {/* CONTROL */}
+          {view === 'control' && (
+            <ControlPanel lastReading={lastReading} />
           )}
 
           {/* AUTOMATION */}

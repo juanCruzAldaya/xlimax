@@ -11,6 +11,7 @@ const NAV = [
   {
     section: 'Control',
     items: [
+      { id: 'control',     label: 'Actuadores',     icon: <ControlIcon /> },
       { id: 'automation',  label: 'Automatización', icon: <AutoIcon /> },
     ],
   },
@@ -78,6 +79,18 @@ function LightIcon() {
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
       <circle cx="7" cy="7" r="2.5" />
       <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M9.01 9.01l1.06 1.06M2.93 11.07l1.06-1.06M9.01 4.99l1.06-1.06" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ControlIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="1" y="4" width="4" height="6" rx="1" />
+      <rect x="9" y="4" width="4" height="6" rx="1" />
+      <circle cx="3" cy="7" r="1" fill="currentColor" stroke="none" />
+      <path d="M5 7h4" strokeLinecap="round" />
+      <circle cx="11" cy="7" r="1" fill="currentColor" stroke="none" />
     </svg>
   )
 }
