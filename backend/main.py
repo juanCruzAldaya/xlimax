@@ -1,6 +1,6 @@
 """
 XLIMAX — Backend de ingestión de datos
-ESP32 → POST /readings → FastAPI
+ESP32 → POST /readings → FastAPI + Firestore
 
 Ejecutar:
     uvicorn main:app --reload --port 8000
@@ -11,11 +11,22 @@ Endpoint principal del ESP32:
 
 from datetime import datetime, timezone
 from typing import List
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import ReadingPayload, ReadingResponse
+
+# Firebase init
+try:
+    cred = credentials.Certificate("firebase-key.json")
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+except Exception as e:
+    print(f"⚠️  Firebase error: {e}")
+    db = None
 
 app = FastAPI(
     title="XLIMAX API",
@@ -25,12 +36,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# buffer en memoria (hasta implementar BD)
+# buffer fallback en memoria
 _buffer: List[dict] = []
 MAX_BUFFER = 1000
 
@@ -48,13 +59,13 @@ def root():
 )
 def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
     """
-    El ESP32 llama a este endpoint cada 5 minutos vía WiFi.
+    El ESP32 llama a este endpoint cada 60 segundos vía WiFi.
 
     Cuerpo esperado (application/json):
     ```json
     {
-      "device_id": "esp32-juanin-01",
-      "timestamp": "2026-05-21T15:30:00Z",   // opcional si tiene RTC
+      "device_id": "esp32-agustina-01",
+      "timestamp": "2026-05-21T15:30:00Z",   // opcional
       "readings": {
         "temperature": 15.2,
         "humidity": 68.4,
@@ -69,15 +80,26 @@ def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
 
     record = {
         "device_id":   payload.device_id,
-        "ts":          effective_ts.isoformat(),
-        "received_at": now.isoformat(),
-        "t":           payload.readings.temperature,
-        "h":           payload.readings.humidity,
-        "l":           payload.readings.light,
+        "ts":          effective_ts,
+        "received_at": now,
+        "temperature": payload.readings.temperature,
+        "humidity":    payload.readings.humidity,
+        "light":       payload.readings.light,
         "fw":          payload.firmware_version,
     }
 
-    _buffer.append(record)
+    # Guardar en Firestore
+    if db:
+        try:
+            db.collection("readings").add(record)
+            print(f"✓ Firestore: {payload.device_id} — T:{payload.readings.temperature}°C H:{payload.readings.humidity}%")
+        except Exception as e:
+            print(f"✗ Firestore error: {e}")
+            _buffer.append(record)
+    else:
+        _buffer.append(record)
+        print(f"⚠️  Buffer: {payload.device_id} (Firestore unavailable)")
+
     if len(_buffer) > MAX_BUFFER:
         _buffer.pop(0)
 
@@ -90,10 +112,22 @@ def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
 
 @app.get(
     "/readings",
-    summary="Últimas lecturas en buffer (debug)",
+    summary="Últimas lecturas (Firestore)",
 )
 def get_readings(limit: int = 100):
-    return {"count": len(_buffer), "data": _buffer[-limit:]}
+    if not db:
+        return {"count": len(_buffer), "data": _buffer[-limit:], "source": "buffer"}
+
+    try:
+        docs = db.collection("readings").order_by("received_at", direction=firestore.Query.DESCENDING).limit(limit).stream()
+        data = []
+        for doc in docs:
+            record = doc.to_dict()
+            record["id"] = doc.id
+            data.append(record)
+        return {"count": len(data), "data": data, "source": "firestore"}
+    except Exception as e:
+        return {"error": str(e), "data": _buffer[-limit:], "source": "buffer"}
 
 
 @app.get(
@@ -101,7 +135,18 @@ def get_readings(limit: int = 100):
     summary="Última lectura de un dispositivo",
 )
 def get_latest(device_id: str):
+    if db:
+        try:
+            docs = db.collection("readings").where("device_id", "==", device_id).order_by("received_at", direction=firestore.Query.DESCENDING).limit(1).stream()
+            for doc in docs:
+                record = doc.to_dict()
+                record["id"] = doc.id
+                return record
+            raise HTTPException(status_code=404, detail="Sin lecturas para este dispositivo")
+        except Exception:
+            pass
+
     matches = [r for r in reversed(_buffer) if r["device_id"] == device_id]
     if not matches:
-        raise HTTPException(status_code=404, detail="Dispositivo sin lecturas registradas")
+        raise HTTPException(status_code=404, detail="Sin lecturas para este dispositivo")
     return matches[0]
