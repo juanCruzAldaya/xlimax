@@ -10,6 +10,9 @@ Endpoint principal del ESP32:
 """
 
 import os
+import json
+import base64
+import tempfile
 from datetime import datetime, timezone
 from typing import List
 import firebase_admin
@@ -20,14 +23,29 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from models import ReadingPayload, ReadingResponse
 
-# Firebase init — key en la raiz del repo
-KEY_PATH = os.path.join(os.path.dirname(__file__), "..", "firebase-key.json")
+# Firebase init
+# Prioridad:
+#   1. FIREBASE_KEY_B64  — contenido del JSON en base64 (Render / cloud)
+#   2. firebase-key.json — archivo local (desarrollo)
+def _init_firebase():
+    b64 = os.environ.get("FIREBASE_KEY_B64")
+    if b64:
+        key_dict = json.loads(base64.b64decode(b64).decode("utf-8"))
+        cred = credentials.Certificate(key_dict)
+        print("[OK] Firebase via env var")
+        return cred
+
+    key_path = os.path.join(os.path.dirname(__file__), "..", "firebase-key.json")
+    if os.path.exists(key_path):
+        print("[OK] Firebase via archivo local")
+        return credentials.Certificate(key_path)
+
+    raise FileNotFoundError("No se encontro credencial Firebase")
 
 try:
-    cred = credentials.Certificate(KEY_PATH)
-    firebase_admin.initialize_app(cred)
+    firebase_admin.initialize_app(_init_firebase())
     db = firestore.client()
-    print("[OK] Firebase conectado")
+    print("[OK] Firestore listo")
 except Exception as e:
     print(f"[WARN] Firebase no disponible: {e}")
     db = None
