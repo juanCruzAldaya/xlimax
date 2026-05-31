@@ -2,20 +2,24 @@ import machine
 import time
 import network
 import urequests
-import json
+from machine import ADC, Pin
 
 # --- CONFIG ---
 SSID        = "Antil "
 PASSWORD    = "agustina2025"
-BACKEND_URL = "https://xlimax.onrender.com"   # sin /readings al final
+BACKEND_URL = "https://xlimax.onrender.com"
 DEVICE_ID   = "esp32-agustina-01"
-INTERVAL    = 15  # segundos entre lecturas
+INTERVAL    = 60  # segundos
 
-# --- I2C + Sensor HTU21D ---
-i2c = machine.I2C(scl=machine.Pin(22), sda=machine.Pin(21))
+# --- I2C (HTU21D — temp y humedad) ---
+i2c         = machine.I2C(scl=machine.Pin(22), sda=machine.Pin(21))
 HTU21D_ADDR = 0x40
 TEMP_CMD    = 0xF3
 HUM_CMD     = 0xF5
+
+# --- ADC (LDR — luz) ---
+ldr = ADC(Pin(34))
+ldr.atten(ADC.ATTN_11DB)  # rango completo 0-3.3V
 
 # --- Logger remoto ---
 def log(level, msg):
@@ -27,12 +31,11 @@ def log(level, msg):
             headers={"Content-Type": "application/json"}
         ).close()
     except:
-        pass  # nunca crashear por un log fallido
+        pass
 
 def info(msg):  log("INFO",  msg)
 def warn(msg):  log("WARN",  msg)
 def error(msg): log("ERROR", msg)
-
 
 # --- WiFi ---
 def connect_wifi():
@@ -40,7 +43,6 @@ def connect_wifi():
     wlan.active(True)
     if wlan.isconnected():
         return True
-
     info(f"Conectando a '{SSID}'...")
     wlan.connect(SSID, PASSWORD)
     for _ in range(20):
@@ -48,12 +50,10 @@ def connect_wifi():
             info(f"WiFi OK. IP: {wlan.ifconfig()[0]}")
             return True
         time.sleep(0.5)
-
-    error("WiFi FAIL - no se pudo conectar")
+    error("WiFi FAIL")
     return False
 
-
-# --- Sensor ---
+# --- Sensores ---
 def read_sensor():
     try:
         i2c.writeto(HTU21D_ADDR, bytes([TEMP_CMD]))
@@ -69,64 +69,55 @@ def read_sensor():
         hum_pct = -6.0 + 125.0 * (hum / 65536.0)
 
         return round(temp_c, 2), round(hum_pct, 2)
-
     except Exception as e:
-        error(f"Sensor HTU21D: {e}")
+        error(f"HTU21D: {e}")
         return None, None
 
-
-# --- Envio al backend ---
-def send_reading(temp, hum):
+def read_light():
     try:
-        payload = {
-            "device_id": DEVICE_ID,
-            "readings": {
-                "temperature": temp,
-                "humidity":    hum,
-                "light":       0.0
-            },
-            "firmware_version": "1.0.0"
-        }
+        val = ldr.read()       # 0 (oscuro) a 4095 (brillante)
+        return float(4095 - val)   # invertido: mas luz = numero mayor
+    except Exception as e:
+        error(f"LDR: {e}")
+        return 0.0
+
+# --- Envio ---
+def send_reading(temp, hum):
+    lux = read_light()
+    try:
         resp = urequests.post(
             f"{BACKEND_URL}/readings",
-            json=payload,
+            json={
+                "device_id": DEVICE_ID,
+                "readings": {
+                    "temperature": temp,
+                    "humidity":    hum,
+                    "light":       lux
+                },
+                "firmware_version": "1.1.0"
+            },
             headers={"Content-Type": "application/json"}
         )
-        code = resp.status_code
+        info(f"POST {resp.status_code} | T:{temp}C H:{hum}% L:{lux}")
         resp.close()
-
-        if code == 201:
-            info(f"POST OK {code} | T:{temp}C H:{hum}%")
-        else:
-            warn(f"POST status inesperado: {code}")
-
     except Exception as e:
-        error(f"POST /readings: {e}")
-
+        error(f"POST: {e}")
 
 # --- MAIN ---
-info("Iniciando XLIMAX firmware 1.0.0")
-
-if not connect_wifi():
-    warn("Arrancando sin WiFi, reintentando en el loop")
+info("Iniciando XLIMAX v1.1.0")
+connect_wifi()
 
 last_send = 0
-
 while True:
     now = time.time()
-
     if now - last_send >= INTERVAL:
         last_send = now
-
         if not connect_wifi():
             time.sleep(5)
             continue
-
         temp, hum = read_sensor()
-
         if temp is not None:
             send_reading(temp, hum)
         else:
             warn("Lectura invalida, saltando ciclo")
-
     time.sleep(1)
