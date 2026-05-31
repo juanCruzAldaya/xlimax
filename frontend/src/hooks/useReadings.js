@@ -19,7 +19,7 @@ export function useReadings() {
 
     const unsub = subscribeToReadings(incoming => {
       if (!active) return
-      if (incoming.length >= 10) {
+      if (incoming.length >= 1 && incoming.some(r => r.t !== null)) {
         setData(incoming)
         setLive(true)
       }

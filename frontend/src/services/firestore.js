@@ -13,36 +13,30 @@ const COL = 'readings'
  * Cada documento tiene: { t, h, l, deviceId, ts (Timestamp) }
  * La función normaliza a { epoch, t, h, l } para compatibilidad con los charts.
  */
+// El backend escribe temperature/humidity/light (nombre largo)
+// El frontend usa t/h/l (nombre corto) — normalizamos acá
+function normalize(doc) {
+  const ts = doc.ts ?? doc.received_at
+  return {
+    epoch: ts?.toMillis?.() ?? Date.now(),
+    t:     doc.t ?? doc.temperature ?? null,
+    h:     doc.h ?? doc.humidity    ?? null,
+    l:     doc.l ?? doc.light       ?? null,
+  }
+}
+
 export function subscribeToReadings(callback, count = 864) {
   const q = query(collection(db, COL), orderBy('ts', 'desc'), limit(count))
   return onSnapshot(q, snap => {
-    const data = snap.docs
-      .map(d => {
-        const doc = d.data()
-        return {
-          epoch: doc.ts?.toMillis() ?? Date.now(),
-          t:     doc.t ?? null,
-          h:     doc.h ?? null,
-          l:     doc.l ?? null,
-        }
-      })
-      .reverse()
+    const data = snap.docs.map(d => normalize(d.data())).reverse()
     callback(data)
   })
 }
 
-/**
- * Lectura única (para SSR o carga inicial sin listener).
- */
 export async function fetchReadings(count = 864) {
   const q    = query(collection(db, COL), orderBy('ts', 'desc'), limit(count))
   const snap = await getDocs(q)
-  return snap.docs
-    .map(d => {
-      const doc = d.data()
-      return { epoch: doc.ts?.toMillis() ?? Date.now(), t: doc.t, h: doc.h, l: doc.l }
-    })
-    .reverse()
+  return snap.docs.map(d => normalize(d.data())).reverse()
 }
 
 /**
