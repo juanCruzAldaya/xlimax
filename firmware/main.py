@@ -142,7 +142,7 @@ else:
 
 last_send   = 0
 last_update = time.time()
-UPDATE_INTERVAL = 6 * 60 * 60  # chequea OTA cada 6 horas
+UPDATE_INTERVAL = 5 * 60  # chequea OTA cada 5 minutos
 
 while True:
     now = time.time()
