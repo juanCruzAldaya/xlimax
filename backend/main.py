@@ -67,6 +67,10 @@ app.add_middleware(
 _buffer: List[dict] = []
 MAX_BUFFER = 1000
 
+# buffer de logs del ESP32
+_logs: List[dict] = []
+MAX_LOGS = 500
+
 
 @app.get("/", include_in_schema=False)
 def root():
@@ -150,6 +154,41 @@ def get_readings(limit: int = 100):
         return {"count": len(data), "data": data, "source": "firestore"}
     except Exception as e:
         return {"error": str(e), "data": _buffer[-limit:], "source": "buffer"}
+
+
+@app.post(
+    "/log",
+    status_code=201,
+    summary="Log remoto del ESP32",
+)
+def receive_log(entry: dict):
+    """
+    El ESP32 manda sus mensajes de debug/error acá.
+    Body: { "device_id": "...", "level": "INFO|WARN|ERROR", "message": "..." }
+    """
+    now = datetime.now(timezone.utc)
+    record = {
+        "ts":        now.isoformat(),
+        "device_id": entry.get("device_id", "unknown"),
+        "level":     entry.get("level", "INFO").upper(),
+        "message":   entry.get("message", ""),
+    }
+    _logs.append(record)
+    if len(_logs) > MAX_LOGS:
+        _logs.pop(0)
+    print(f"[LOG][{record['level']}] {record['device_id']}: {record['message']}")
+    return {"ok": True}
+
+
+@app.get(
+    "/log",
+    summary="Últimos logs del ESP32",
+)
+def get_logs(device_id: str = None, limit: int = 100):
+    logs = _logs[-limit:]
+    if device_id:
+        logs = [l for l in logs if l["device_id"] == device_id]
+    return {"count": len(logs), "logs": list(reversed(logs))}
 
 
 @app.get(
