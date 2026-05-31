@@ -805,66 +805,130 @@ html, body, #root {
 @media (max-width: 768px) {
 
   /* sidebar oculto, bottom nav visible */
-  .sidebar     { display: none; }
-  .bottom-nav  { display: flex; }
+  .sidebar    { display: none; }
+  .bottom-nav { display: flex; }
 
-  /* main sin margen lateral del sidebar */
+  /* fuente base levemente más grande para legibilidad */
+  html { font-size: 15px; }
+
+  /* main: padding ajustado + espacio para bottom nav */
   .app-main {
-    padding: var(--s4);
-    padding-bottom: calc(64px + var(--s4));  /* espacio para bottom nav */
+    padding: var(--s3);
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px) + var(--s3));
   }
-
-  /* sensor cards: 1 columna en móvil */
-  .view-cards {
-    grid-template-columns: 1fr;
-  }
-
-  /* card horizontal en móvil: valor + sparkline en fila */
-  .sensor-card {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto auto;
-    column-gap: var(--s4);
-    padding: var(--s3) var(--s4);
-  }
-
-  .sensor-card__header    { grid-column: 1; grid-row: 1; }
-  .sensor-card__value-row { grid-column: 1; grid-row: 2; margin-bottom: 0; }
-  .sensor-card__footer    { grid-column: 1; grid-row: 3; margin-top: var(--s2); }
-  .sensor-card__sparkline {
-    grid-column: 2;
-    grid-row: 1 / 4;
-    width: 90px;
-    height: auto;
-    align-self: center;
-  }
-
-  .sensor-card__value { font-size: 24px; }
-
-  /* stats: 2 columnas */
-  .stats-grid  { grid-template-columns: repeat(2, 1fr); }
-  .stats-days  { grid-template-columns: 1fr; }
-
-  /* actuadores: 2 columnas en móvil */
-  .actuator-grid { grid-template-columns: repeat(2, 1fr); }
-
-  /* reglas: 1 columna */
-  .rules-grid { grid-template-columns: 1fr; }
-
-  /* chart un poco más bajo */
-  .chart-panel__area { height: 190px; }
-  .chart-panel { padding: var(--s4) var(--s3) var(--s3); }
-
-  /* header compacto */
-  .header { padding: 0 var(--s4); }
-  .header-last { display: none; }
-  .header-device { display: none; }
 
   /* views sin max-width fijo */
   .view, .automation-panel, .control-panel { max-width: 100%; }
+  .view { gap: var(--s3); }
 
-  /* control footer compacto */
-  .control-footer { flex-direction: column; align-items: flex-start; gap: var(--s2); }
+  /* ── Sensor cards: 2 columnas compactas ── */
+  .view-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--s3);
+  }
+  .view-cards--single {
+    grid-template-columns: 1fr;
+  }
+
+  .sensor-card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--s3);
+    gap: var(--s2);
+  }
+
+  .sensor-card__header    { margin-bottom: 0; }
+  .sensor-card__value-row { margin-bottom: 0; }
+  .sensor-card__value     { font-size: 26px; }
+
+  .sensor-card__sparkline {
+    height: 36px;
+    margin: 0 -2px;
+  }
+
+  .sensor-card__footer { margin-top: 0; }
+  .sensor-card__stat-val { font-size: 10px; }
+
+  /* ── Chart panel ── */
+  .chart-panel { padding: var(--s3); }
+  .chart-panel__area { height: 200px; }
+  .chart-panel__subtitle { display: none; }
+
+  /* header del chart: título arriba, tabs abajo ocupando todo el ancho */
+  .chart-panel__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s2);
+    margin-bottom: var(--s3);
+  }
+
+  .range-tabs {
+    align-self: stretch;
+    justify-content: space-between;
+  }
+
+  /* touch targets más grandes en los tabs */
+  .range-tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 12px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Stats ── */
+  .stats-panel { padding: var(--s3); }
+  .stats-grid  { grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
+  .stats-days  { grid-template-columns: 1fr; }
+  .stat-block  { padding: var(--s2) var(--s3); }
+  .stat-block__value { font-size: 20px; }
+
+  /* ── Actuadores: 2x2 ── */
+  .actuator-grid { grid-template-columns: repeat(2, 1fr); gap: var(--s3); }
+  .actuator-card { padding: var(--s3); }
+
+  /* toggle más grande para dedos */
+  .toggle {
+    width: 48px;
+    height: 27px;
+    border-radius: 14px;
+  }
+  .toggle__thumb {
+    width: 21px;
+    height: 21px;
+  }
+  .toggle--on .toggle__thumb { transform: translateX(21px); }
+
+  /* ── Automatización ── */
+  .rules-grid { grid-template-columns: 1fr; }
+  .activity-log { padding: var(--s3); }
+
+  /* ── Header ── */
+  .header { padding: 0 var(--s3); }
+  .header-last   { display: none; }
+  .header-device { display: none; }
+
+  /* ── Control footer ── */
+  .control-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s2);
+    padding: var(--s3);
+  }
+
+  /* ── Touch optimization ── */
+  .sensor-card,
+  .range-tab,
+  .nav-item,
+  .bottom-nav__item,
+  .toggle,
+  .btn-all-off {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /* ── Bottom nav estilos ────────────────────────────── */
@@ -873,14 +937,13 @@ html, body, #root {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 64px;
+  height: 68px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
   flex-direction: row;
   align-items: stretch;
   z-index: 100;
-  padding: 0 var(--s1);
-  /* safe area para iPhones con notch inferior */
+  padding: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
