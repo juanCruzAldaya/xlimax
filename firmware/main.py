@@ -8,21 +8,24 @@ from machine import ADC, Pin
 SSID        = "Antil "
 PASSWORD    = "agustina2025"
 BACKEND_URL = "https://xlimax.onrender.com"
-INTERVAL    = 30  # segundos
+INTERVAL    = 30  # segundos entre lecturas
 
-# IDs de cada sensor — aparecen como dispositivos separados en el dashboard
-DEVICE_1 = "esp32-agustina-01"   # sensor interior
-DEVICE_2 = "esp32-agustina-02"   # sensor exterior
+VERSION     = "1.2.0"
+FIRMWARE_BASE = "https://raw.githubusercontent.com/juanCruzAldaya/xlimax/master/firmware"
+
+# IDs de cada sensor
+DEVICE_1 = "esp32-agustina-01"
+DEVICE_2 = "esp32-agustina-02"
 
 # --- I2C — dos buses independientes ---
 HTU21D_ADDR = 0x40
 TEMP_CMD    = 0xF3
 HUM_CMD     = 0xF5
 
-i2c1 = machine.I2C(0, scl=machine.Pin(22), sda=machine.Pin(21))  # sensor 1
-i2c2 = machine.I2C(1, scl=machine.Pin(25), sda=machine.Pin(26))  # sensor 2
+i2c1 = machine.I2C(0, scl=machine.Pin(22), sda=machine.Pin(21))
+i2c2 = machine.I2C(1, scl=machine.Pin(25), sda=machine.Pin(26))
 
-# --- ADC (LDR — luz, solo en sensor 1) ---
+# --- ADC (LDR) ---
 ldr = ADC(Pin(34))
 ldr.atten(ADC.ATTN_11DB)
 
@@ -52,13 +55,40 @@ def connect_wifi():
     wlan.connect(SSID, PASSWORD)
     for _ in range(20):
         if wlan.isconnected():
-            info(f"WiFi OK. IP: {wlan.ifconfig()[0]}")
+            info(f"WiFi OK — IP: {wlan.ifconfig()[0]}")
             return True
         time.sleep(0.5)
     error("WiFi FAIL")
     return False
 
-# --- Sensor HTU21D generico (recibe el bus i2c) ---
+# --- OTA update ---
+def check_update():
+    try:
+        info(f"OTA check (actual: v{VERSION})")
+        r = urequests.get(f"{FIRMWARE_BASE}/version.txt", timeout=10)
+        remote = r.text.strip()
+        r.close()
+
+        if remote == VERSION:
+            info("Firmware al dia")
+            return
+
+        info(f"Nueva version: {remote} — descargando...")
+        r = urequests.get(f"{FIRMWARE_BASE}/main.py", timeout=30)
+        nuevo = r.text
+        r.close()
+
+        with open("main.py", "w") as f:
+            f.write(nuevo)
+
+        info(f"Firmware actualizado a v{remote} — reiniciando en 3s")
+        time.sleep(3)
+        machine.reset()
+
+    except Exception as e:
+        warn(f"OTA error: {e}")
+
+# --- Sensores ---
 def read_htu21d(bus, nombre):
     try:
         bus.writeto(HTU21D_ADDR, bytes([TEMP_CMD]))
@@ -78,7 +108,6 @@ def read_htu21d(bus, nombre):
         error(f"HTU21D {nombre}: {e}")
         return None, None
 
-# --- LDR ---
 def read_light():
     try:
         return float(4095 - ldr.read())
@@ -93,12 +122,8 @@ def send_reading(device_id, temp, hum, lux=0.0):
             f"{BACKEND_URL}/readings",
             json={
                 "device_id": device_id,
-                "readings": {
-                    "temperature": temp,
-                    "humidity":    hum,
-                    "light":       lux
-                },
-                "firmware_version": "1.2.0"
+                "readings": {"temperature": temp, "humidity": hum, "light": lux},
+                "firmware_version": VERSION
             },
             headers={"Content-Type": "application/json"}
         )
@@ -108,12 +133,27 @@ def send_reading(device_id, temp, hum, lux=0.0):
         error(f"POST {device_id}: {e}")
 
 # --- MAIN ---
-info("Iniciando XLIMAX v1.2.0 - 2 sensores")
-connect_wifi()
+info(f"Iniciando XLIMAX v{VERSION}")
 
-last_send = 0
+if not connect_wifi():
+    warn("Sin WiFi al inicio — reintentando en el loop")
+else:
+    check_update()   # chequea actualizacion solo si hay WiFi
+
+last_send   = 0
+last_update = time.time()
+UPDATE_INTERVAL = 6 * 60 * 60  # chequea OTA cada 6 horas
+
 while True:
     now = time.time()
+
+    # Chequeo periodico de OTA
+    if now - last_update >= UPDATE_INTERVAL:
+        last_update = now
+        if connect_wifi():
+            check_update()
+
+    # Lectura y envio de sensores
     if now - last_send >= INTERVAL:
         last_send = now
 
@@ -123,7 +163,6 @@ while True:
 
         lux = read_light()
 
-        # Sensor 1
         t1, h1 = read_htu21d(i2c1, "sensor1")
         if t1 is not None:
             send_reading(DEVICE_1, t1, h1, lux)
@@ -132,7 +171,6 @@ while True:
 
         time.sleep(0.5)
 
-        # Sensor 2
         t2, h2 = read_htu21d(i2c2, "sensor2")
         if t2 is not None:
             send_reading(DEVICE_2, t2, h2, 0.0)
