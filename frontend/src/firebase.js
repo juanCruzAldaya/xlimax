@@ -3,13 +3,13 @@ import { getFirestore } from 'firebase/firestore'
 import { getAnalytics, isSupported } from 'firebase/analytics'
 
 const firebaseConfig = {
-  apiKey:            'AIzaSyD6KRCSFTlHxwuXrQwpJ_Vah5jIIFBlSIw',
-  authDomain:        'xlimax-c8bb4.firebaseapp.com',
-  projectId:         'xlimax-c8bb4',
-  storageBucket:     'xlimax-c8bb4.firebasestorage.app',
-  messagingSenderId: '546870385888',
-  appId:             '1:546870385888:web:8ffc841777673ed6a1c485',
-  measurementId:     'G-V8NDNS2S2F',
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
 export const app = initializeApp(firebaseConfig)
