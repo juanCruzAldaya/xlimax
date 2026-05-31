@@ -1,80 +1,96 @@
+import { AlertTriangle, Leaf, CheckCircle, Clock } from 'lucide-react'
+
 const RULES = [
   {
-    id: 1,
-    name: 'Calefactor',
-    condition: 'temp < 8 °C\ndurante ≥ 30 min → activar calefactor',
-    status: 'inactive',
+    id: 1, name: 'Calefactor',
+    condition: 'temp < 8°C por 30 min → activar calefactor',
+    getStatus: r => r?.t < 8 ? 'trigger' : 'ok',
+    getCurrent: r => `Temp: ${r?.t ?? '—'} °C`,
     lastTriggered: '18/05 06:14',
-    getStatus: r => r.t < 8 ? 'trigger' : 'inactive',
-    getCurrent: r => `Temp actual: ${r.t} °C`,
   },
   {
-    id: 2,
-    name: 'Extractor',
-    condition: 'hum > 85 %\n→ activar extractor de aire',
-    status: 'inactive',
+    id: 2, name: 'Extractor',
+    condition: 'hum > 85% → activar extractor',
+    getStatus: r => r?.h > 85 ? 'trigger' : 'ok',
+    getCurrent: r => `Hum: ${r?.h ?? '—'} %`,
     lastTriggered: '19/05 09:20',
-    getStatus: r => r.h > 85 ? 'trigger' : 'inactive',
-    getCurrent: r => `Humedad actual: ${r.h} %`,
   },
   {
-    id: 3,
-    name: 'Iluminación LED grow',
-    condition: 'lux < 2 000\nentre 08:00–18:00 → activar panel LED',
-    status: 'inactive',
-    lastTriggered: '19/05 08:00–16:45',
-    getStatus: r => r.l < 2000 ? 'trigger' : 'inactive',
-    getCurrent: r => `Lux actual: ${r.l.toLocaleString()} lx`,
+    id: 3, name: 'LED Grow',
+    condition: 'luz < 20% entre 08:00–18:00 → activar panel',
+    getStatus: r => r?.l < 20 ? 'trigger' : 'ok',
+    getCurrent: r => `Luz: ${r?.l ?? '—'} %`,
+    lastTriggered: '19/05 08:00',
   },
   {
-    id: 4,
-    name: 'Alerta humedad crítica',
-    condition: 'hum > 90 %\ndurante ≥ 60 min → notificar',
-    status: 'inactive',
+    id: 4, name: 'Alerta humedad',
+    condition: 'hum > 90% por 60 min → notificar',
+    getStatus: r => r?.h > 90 ? 'trigger' : 'ok',
+    getCurrent: r => `Hum: ${r?.h ?? '—'} %`,
     lastTriggered: '19/05 11:30',
-    getStatus: r => r.h > 90 ? 'trigger' : 'inactive',
-    getCurrent: r => `Humedad actual: ${r.h} %`,
   },
 ]
 
 const LOG = [
-  { time: '20/05 18:12', text: 'Sistema iniciado — ESP32-01 conectado', color: '#22c55e' },
-  { time: '19/05 16:45', text: 'LED grow apagado — luminosidad recuperada (3 200 lx)', color: '#475569' },
-  { time: '19/05 11:30', text: 'ALERTA: humedad 91.2 % notificada', color: '#f59e0b' },
-  { time: '19/05 08:00', text: 'LED grow encendido — lux 980 < 2 000', color: '#818cf8' },
-  { time: '18/05 06:14', text: 'Calefactor encendido — temp 6.9 °C < 8 °C', color: '#f59e0b' },
-  { time: '18/05 09:02', text: 'Calefactor apagado — temp 9.1 °C', color: '#475569' },
+  { type: 'ok',      msg: 'Sistema iniciado — ESP32 conectado',          time: '20/05 18:12' },
+  { type: 'info',    msg: 'LED grow apagado — luminosidad recuperada',    time: '19/05 16:45' },
+  { type: 'warning', msg: 'Alerta: humedad 91.2% notificada',            time: '19/05 11:30' },
+  { type: 'info',    msg: 'LED grow encendido — luz 12% < 20%',          time: '19/05 08:00' },
+  { type: 'warning', msg: 'Calefactor encendido — temp 6.9°C < 8°C',     time: '18/05 06:14' },
 ]
 
-const BADGE = {
-  active:   { cls: 'rule-badge--active',   label: 'ACTIVA'   },
-  inactive: { cls: 'rule-badge--inactive', label: 'INACTIVA' },
-  trigger:  { cls: 'rule-badge--trigger',  label: 'ACTIVA'   },
-}
+export default function AutomationPanel({ lastReading, compact }) {
+  const alerts = RULES.filter(r => r.getStatus(lastReading) === 'trigger')
 
-export default function AutomationPanel({ lastReading }) {
+  if (compact) {
+    return (
+      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-slate-800">Alertas Recientes</h3>
+          {alerts.length > 0 && (
+            <span className="text-xs font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">
+              {alerts.length} activa{alerts.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div className="space-y-3">
+          {LOG.slice(0, 3).map((entry, i) => (
+            <AlertItem key={i} {...entry} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="automation-panel">
-      <div>
-        <div className="section-label">Reglas de automatización</div>
-        <div className="rules-grid">
+    <div className="space-y-6">
+      {/* Rules */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <h3 className="font-bold text-slate-800 mb-4">Reglas de automatización</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {RULES.map(rule => {
-            const statusKey = lastReading ? rule.getStatus(lastReading) : 'inactive'
-            const badge     = BADGE[statusKey]
-            const current   = lastReading ? rule.getCurrent(lastReading) : '—'
-
+            const status  = rule.getStatus(lastReading)
+            const current = rule.getCurrent(lastReading)
             return (
-              <div key={rule.id} className="rule-card">
-                <div className="rule-card__header">
-                  <span className="rule-card__name">{rule.name}</span>
-                  <span className={`rule-badge ${badge.cls}`}>{badge.label}</span>
+              <div key={rule.id} className={`p-4 rounded-2xl border ${
+                status === 'trigger'
+                  ? 'bg-amber-50 border-amber-100'
+                  : 'bg-slate-50 border-slate-100'
+              }`}>
+                <div className="flex justify-between items-start mb-2">
+                  <p className="font-semibold text-slate-800 text-sm">{rule.name}</p>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    status === 'trigger'
+                      ? 'bg-amber-200 text-amber-800'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {status === 'trigger' ? 'ACTIVA' : 'OK'}
+                  </span>
                 </div>
-
-                <pre className="rule-card__condition">{rule.condition}</pre>
-
-                <div className="rule-card__footer">
-                  <span className="rule-card__current">{current}</span>
-                  <span className="rule-card__last">último disparo: {rule.lastTriggered}</span>
+                <p className="text-xs text-slate-500 mb-2">{rule.condition}</p>
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span className="font-mono">{current}</span>
+                  <span>último: {rule.lastTriggered}</span>
                 </div>
               </div>
             )
@@ -82,20 +98,35 @@ export default function AutomationPanel({ lastReading }) {
         </div>
       </div>
 
-      <div className="activity-log">
-        <div className="section-label">Log de actividad</div>
-        <div className="log-list">
+      {/* Log */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <h3 className="font-bold text-slate-800 mb-4">Log de actividad</h3>
+        <div className="space-y-3">
           {LOG.map((entry, i) => (
-            <div key={i} className="log-entry">
-              <span className="log-entry__time">{entry.time}</span>
-              <span
-                className="log-entry__dot"
-                style={{ background: entry.color }}
-              />
-              <span className="log-entry__text">{entry.text}</span>
-            </div>
+            <AlertItem key={i} {...entry} />
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function AlertItem({ type, msg, time }) {
+  const styles = {
+    warning: { bg: 'bg-amber-50 border-amber-100', text: 'text-amber-800', icon: <AlertTriangle size={15} className="text-amber-500 mt-0.5" /> },
+    ok:      { bg: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-800', icon: <CheckCircle size={15} className="text-emerald-500 mt-0.5" /> },
+    info:    { bg: 'bg-blue-50 border-blue-100', text: 'text-blue-800', icon: <Leaf size={15} className="text-blue-500 mt-0.5" /> },
+  }
+  const s = styles[type] ?? styles.info
+
+  return (
+    <div className={`flex items-start gap-3 p-3 rounded-xl border ${s.bg}`}>
+      {s.icon}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium ${s.text}`}>{msg}</p>
+        <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+          <Clock size={10} /> {time}
+        </p>
       </div>
     </div>
   )

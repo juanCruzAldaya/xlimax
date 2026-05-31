@@ -15,54 +15,47 @@ function CustomTooltip({ active, payload, label, sensorKey }) {
   if (!active || !payload?.length) return null
   const cfg = SENSOR_CONFIG[sensorKey]
   const val = payload[0]?.value
-  const d = new Date(label)
-  const timeStr = d.toLocaleString('es-AR', {
-    day: 'numeric', month: 'short',
-    hour: '2-digit', minute: '2-digit',
-  })
+  const d   = new Date(label)
   return (
     <div className="chart-tooltip">
-      <span className="chart-tooltip__time">{timeStr}</span>
-      <span className="chart-tooltip__val" style={{ color: cfg.colorHex }}>
+      <p className="chart-tooltip__time">
+        {d.toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+      </p>
+      <p className="chart-tooltip__val" style={{ color: cfg.colorHex }}>
         {val != null ? `${val}${cfg.unit}` : '—'}
-      </span>
+      </p>
     </div>
   )
 }
 
-export default function ChartPanel({
-  data, sensorKey, rangeIdx, onRangeChange,
-}) {
-  const cfg       = SENSOR_CONFIG[sensorKey]
+export default function ChartPanel({ data, sensorKey, rangeIdx, onRangeChange }) {
+  const cfg         = SENSOR_CONFIG[sensorKey]
   const rangePoints = RANGES[rangeIdx]?.points ?? 288
 
-  const vals      = data.map(d => d[sensorKey])
-  const dataMin   = Math.min(...vals)
-  const dataMax   = Math.max(...vals)
-  const pad       = (dataMax - dataMin) * 0.15 || 1
-  const yDomain   = [+(dataMin - pad).toFixed(1), +(dataMax + pad).toFixed(1)]
-
-  /* thin out ticks to avoid crowding */
-  const tickCount = rangePoints <= 12 ? 6 : rangePoints <= 72 ? 7 : rangePoints <= 288 ? 8 : 9
+  const vals    = data.map(d => d[sensorKey]).filter(v => v != null)
+  const dataMin = vals.length ? Math.min(...vals) : 0
+  const dataMax = vals.length ? Math.max(...vals) : 100
+  const pad     = (dataMax - dataMin) * 0.15 || 1
+  const yDomain = [+(dataMin - pad).toFixed(1), +(dataMax + pad).toFixed(1)]
 
   return (
-    <div className="chart-panel">
-      <div className="chart-panel__header">
-        <div className="chart-panel__title">
-          <div
-            className="chart-panel__sensor-dot"
-            style={{ background: cfg.colorHex }}
-          />
-          <span className="chart-panel__name">{cfg.label}</span>
-          <span className="chart-panel__subtitle">— evolución temporal</span>
+    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h3 className="font-bold text-slate-800">Tendencia — {cfg.label}</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Evolución temporal del sensor</p>
         </div>
 
-        <div className="range-tabs">
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
           {RANGES.map((r, idx) => (
             <button
               key={r.label}
-              className={`range-tab${rangeIdx === idx ? ' range-tab--active' : ''}`}
               onClick={() => onRangeChange(idx)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                rangeIdx === idx
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
             >
               {r.label}
             </button>
@@ -70,60 +63,47 @@ export default function ChartPanel({
         </div>
       </div>
 
-      <div className="chart-panel__area">
+      <div className="h-60">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id={cfg.gradId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor={cfg.colorHex} stopOpacity={0.25} />
-                <stop offset="85%" stopColor={cfg.colorHex} stopOpacity={0}    />
+                <stop offset="5%"  stopColor={cfg.colorHex} stopOpacity={0.2} />
+                <stop offset="85%" stopColor={cfg.colorHex} stopOpacity={0}   />
               </linearGradient>
             </defs>
-
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="rgba(148,163,184,0.07)"
-              vertical={false}
-            />
-
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis
-              dataKey="epoch"
-              type="number"
-              scale="time"
+              dataKey="epoch" type="number" scale="time"
               domain={['dataMin', 'dataMax']}
-              tickCount={tickCount}
+              tickCount={7}
               tickFormatter={e => formatEpoch(e, rangePoints)}
-              tick={{ fill: '#475569', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-              axisLine={{ stroke: 'rgba(148,163,184,0.12)' }}
-              tickLine={false}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              axisLine={false} tickLine={false}
             />
-
             <YAxis
               domain={yDomain}
-              tick={{ fill: '#475569', fontSize: 10, fontFamily: 'JetBrains Mono' }}
-              axisLine={false}
-              tickLine={false}
-              width={46}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              axisLine={false} tickLine={false} width={44}
               tickFormatter={v => `${v}${cfg.unit}`}
             />
-
-            <Tooltip
-              content={<CustomTooltip sensorKey={sensorKey} />}
-              cursor={{ stroke: 'rgba(148,163,184,0.2)', strokeWidth: 1 }}
-            />
-
+            <Tooltip content={<CustomTooltip sensorKey={sensorKey} />}
+              cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
             <Area
-              type="monotone"
-              dataKey={sensorKey}
-              stroke={cfg.colorHex}
-              strokeWidth={1.8}
+              type="monotone" dataKey={sensorKey}
+              stroke={cfg.colorHex} strokeWidth={2.5}
               fill={`url(#${cfg.gradId})`}
               dot={false}
-              activeDot={{ r: 3, strokeWidth: 0, fill: cfg.colorHex }}
+              activeDot={{ r: 4, strokeWidth: 0, fill: cfg.colorHex }}
               isAnimationActive={false}
             />
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+
+      <div className="flex items-center gap-2 mt-4 justify-center">
+        <span className="w-3 h-3 rounded-full" style={{ background: cfg.colorHex }} />
+        <span className="text-xs text-slate-500">{cfg.label}</span>
       </div>
     </div>
   )

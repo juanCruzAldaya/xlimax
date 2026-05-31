@@ -1,104 +1,92 @@
+import { Leaf, LayoutDashboard, Thermometer, Droplets, Sun, Zap, Star } from 'lucide-react'
+
 const NAV = [
   {
     section: 'Monitoreo',
     items: [
-      { id: 'overview',    label: 'Overview',      icon: <OverviewIcon /> },
-      { id: 't',           label: 'Temperatura',   icon: <TempIcon />,   dot: '#f59e0b' },
-      { id: 'h',           label: 'Humedad',       icon: <HumIcon />,    dot: '#38bdf8' },
-      { id: 'l',           label: 'Luminosidad',   icon: <LightIcon />,  dot: '#a3e635' },
+      { id: 'overview', label: 'Dashboard',    icon: LayoutDashboard },
+      { id: 't',        label: 'Temperatura',  icon: Thermometer,  dot: '#f97316' },
+      { id: 'h',        label: 'Humedad',      icon: Droplets,     dot: '#3b82f6' },
+      { id: 'l',        label: 'Luminosidad',  icon: Sun,          dot: '#f59e0b' },
     ],
   },
   {
     section: 'Control',
     items: [
-      { id: 'control',     label: 'Actuadores',     icon: <ControlIcon /> },
-      { id: 'automation',  label: 'Automatización', icon: <AutoIcon /> },
+      { id: 'control',    label: 'Actuadores',     icon: Zap },
+      { id: 'automation', label: 'Automatización', icon: Star },
     ],
   },
 ]
 
-export default function Sidebar({ activeView, onNavigate }) {
+export default function Sidebar({ activeView, onNavigate, live, lastReading }) {
+  const timeStr = lastReading
+    ? new Date(lastReading.epoch).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+    : '—'
+
   return (
-    <nav className="sidebar">
-      {NAV.map(section => (
-        <div key={section.section}>
-          <div className="nav-section-label">{section.section}</div>
-          {section.items.map(item => (
-            <div
-              key={item.id}
-              className={`nav-item${activeView === item.id ? ' nav-item--active' : ''}`}
-              onClick={() => onNavigate(item.id)}
-            >
-              <span className="nav-item__icon">{item.icon}</span>
-              <span className="nav-item__label">{item.label}</span>
-              {item.dot && (
-                <span
-                  className="nav-item__indicator"
-                  style={{ background: item.dot }}
-                />
-              )}
-            </div>
-          ))}
+    <aside className="desktop-sidebar w-64 bg-white border-r border-slate-200 flex flex-col p-4 md:min-h-screen flex-shrink-0">
+
+      {/* Brand */}
+      <div className="flex items-center gap-3 mb-8 px-2 mt-2">
+        <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600">
+          <Leaf size={24} />
         </div>
-      ))}
-    </nav>
-  )
-}
+        <div>
+          <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-wide">XLIMAX</h1>
+          <p className="text-xs text-slate-500">Monitor Ambiental</p>
+        </div>
+      </div>
 
-function OverviewIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="1" y="1" width="5" height="5" rx="1" />
-      <rect x="8" y="1" width="5" height="5" rx="1" />
-      <rect x="1" y="8" width="5" height="5" rx="1" />
-      <rect x="8" y="8" width="5" height="5" rx="1" />
-    </svg>
-  )
-}
+      {/* Nav */}
+      <nav className="flex-1 space-y-5">
+        {NAV.map(section => (
+          <div key={section.section}>
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 px-3 mb-2">
+              {section.section}
+            </p>
+            <div className="space-y-1">
+              {section.items.map(item => {
+                const Icon = item.icon
+                const active = activeView === item.id
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors text-left ${
+                      active
+                        ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon size={18} />
+                      <span className="text-sm">{item.label}</span>
+                    </div>
+                    {item.dot && (
+                      <span className="w-2 h-2 rounded-full" style={{ background: item.dot }} />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
 
-function TempIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M7 1v7.2" strokeLinecap="round" />
-      <circle cx="7" cy="10.5" r="2" />
-      <path d="M5 3h1M5 5h1M5 7h1" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function HumIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M7 2 C7 2 2 7 2 9.5a5 5 0 0 0 10 0C12 7 7 2 7 2z" />
-    </svg>
-  )
-}
-
-function LightIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="7" cy="7" r="2.5" />
-      <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M9.01 9.01l1.06 1.06M2.93 11.07l1.06-1.06M9.01 4.99l1.06-1.06" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function ControlIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="1" y="4" width="4" height="6" rx="1" />
-      <rect x="9" y="4" width="4" height="6" rx="1" />
-      <circle cx="3" cy="7" r="1" fill="currentColor" stroke="none" />
-      <path d="M5 7h4" strokeLinecap="round" />
-      <circle cx="11" cy="7" r="1" fill="currentColor" stroke="none" />
-    </svg>
-  )
-}
-
-function AutoIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M7 1l1.5 3.5L13 5l-3 2.9.7 4.1L7 10.5 3.3 12l.7-4.1L1 5l4.5-.5z" />
-    </svg>
+      {/* Status badge */}
+      <div className={`mt-6 p-4 rounded-2xl border ${live
+        ? 'bg-emerald-50 border-emerald-100'
+        : 'bg-slate-50 border-slate-200'}`}
+      >
+        <div className={`flex items-center gap-2 font-medium mb-1 text-sm ${live ? 'text-emerald-800' : 'text-slate-600'}`}>
+          <span className={`w-2 h-2 rounded-full ${live ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+          {live ? 'Sistema en línea' : 'Datos de demo'}
+        </div>
+        <p className={`text-xs ${live ? 'text-emerald-600' : 'text-slate-400'}`}>
+          {live ? `Última lectura: ${timeStr}` : 'ESP32 desconectado'}
+        </p>
+      </div>
+    </aside>
   )
 }

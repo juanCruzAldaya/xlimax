@@ -8,7 +8,7 @@ from machine import ADC, Pin
 SSID        = "Antil "
 PASSWORD    = "agustina2025"
 BACKEND_URL = "https://xlimax.onrender.com"
-INTERVAL    = 60  # segundos
+INTERVAL    = 30  # segundos
 
 # IDs de cada sensor — aparecen como dispositivos separados en el dashboard
 DEVICE_1 = "esp32-agustina-01"   # sensor interior
