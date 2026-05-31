@@ -9,6 +9,7 @@ Endpoint principal del ESP32:
     POST http://<server-ip>:8000/readings
 """
 
+import os
 from datetime import datetime, timezone
 from typing import List
 import firebase_admin
@@ -19,13 +20,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from models import ReadingPayload, ReadingResponse
 
-# Firebase init
+# Firebase init — key en la raiz del repo
+KEY_PATH = os.path.join(os.path.dirname(__file__), "..", "firebase-key.json")
+
 try:
-    cred = credentials.Certificate("firebase-key.json")
+    cred = credentials.Certificate(KEY_PATH)
     firebase_admin.initialize_app(cred)
     db = firestore.client()
+    print("[OK] Firebase conectado")
 except Exception as e:
-    print(f"⚠️  Firebase error: {e}")
+    print(f"[WARN] Firebase no disponible: {e}")
     db = None
 
 app = FastAPI(
@@ -92,13 +96,13 @@ def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
     if db:
         try:
             db.collection("readings").add(record)
-            print(f"✓ Firestore: {payload.device_id} — T:{payload.readings.temperature}°C H:{payload.readings.humidity}%")
+            print(f"[OK] Firestore: {payload.device_id} T:{payload.readings.temperature}C H:{payload.readings.humidity}%")
         except Exception as e:
-            print(f"✗ Firestore error: {e}")
+            print(f"[ERR] Firestore: {e}")
             _buffer.append(record)
     else:
         _buffer.append(record)
-        print(f"⚠️  Buffer: {payload.device_id} (Firestore unavailable)")
+        print(f"[BUFFER] {payload.device_id} (Firestore no disponible)")
 
     if len(_buffer) > MAX_BUFFER:
         _buffer.pop(0)
