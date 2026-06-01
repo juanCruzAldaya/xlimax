@@ -93,7 +93,7 @@ export default function App() {
               <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <SensorCard sensorKey={view} data={readings} rangePoints={range.points} active onClick={() => {}} />
+              <SensorCard sensorKey={view} data={nodeReadings} rangePoints={range.points} active onClick={() => {}} />
             </div>
             <ChartPanel data={visibleData} sensorKey={view} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
             <StatsPanel data={visibleData} sensorKey={view} showDays />
