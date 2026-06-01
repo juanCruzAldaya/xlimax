@@ -15,7 +15,7 @@ const COL = 'readings'
  */
 function avg(values) {
   const v = values.filter(x => x != null)
-  return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : null
+  return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) : null
 }
 
 function flatNode(s) {

@@ -135,7 +135,7 @@ export function calcStats(data, key) {
   const max = Math.max(...vals);
   const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
   const std = Math.sqrt(vals.reduce((a, b) => a + (b - avg) ** 2, 0) / vals.length);
-  return { min: +min.toFixed(1), max: +max.toFixed(1), avg: +avg.toFixed(1), std: +std.toFixed(1) };
+  return { min: +min.toFixed(2), max: +max.toFixed(2), avg: +avg.toFixed(2), std: +std.toFixed(2) };
 }
 
 export function formatEpoch(epoch, points) {
