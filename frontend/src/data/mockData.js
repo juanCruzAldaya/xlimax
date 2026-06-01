@@ -129,7 +129,8 @@ export const SENSOR_CONFIG = {
 
 export function calcStats(data, key) {
   if (!data.length) return {};
-  const vals = data.map(d => d[key]);
+  const vals = data.map(d => d[key]).filter(v => v != null);
+  if (!vals.length) return {};
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
