@@ -81,54 +81,57 @@ def root():
     "/readings",
     response_model=ReadingResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Ingestión de lectura del ESP32",
+    summary="Ingestión de lecturas del ESP32 — todos los sensores en un POST",
 )
 def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
     """
-    El ESP32 llama a este endpoint cada 60 segundos vía WiFi.
+    Un solo POST por intervalo con todos los sensores.
 
-    Cuerpo esperado (application/json):
     ```json
     {
-      "device_id": "esp32-agustina-01",
-      "timestamp": "2026-05-21T15:30:00Z",   // opcional
-      "readings": {
-        "temperature": 15.2,
-        "humidity": 68.4,
-        "light": 4200.0
-      },
-      "firmware_version": "1.0.0"
+      "device_id": "esp32-agustina",
+      "firmware_version": "1.4.0",
+      "sensors": {
+        "interior": { "temperature": 21.5, "humidity": 65.2, "light": 1200, "pressure_hpa": 1013.5, "altitude_m": 20.0 },
+        "exterior": { "temperature": 18.3, "humidity": 78.1, "light": 0.0 }
+      }
     }
     ```
     """
-    now = datetime.now(timezone.utc)
+    now          = datetime.now(timezone.utc)
     effective_ts = payload.timestamp or now
 
     record = {
         "device_id":   payload.device_id,
         "ts":          effective_ts,
         "received_at": now,
-        "temperature": payload.readings.temperature,
-        "humidity":    payload.readings.humidity,
-        "light":       payload.readings.light,
         "fw":          payload.firmware_version,
+        "sensors": {
+            name: {k: v for k, v in {
+                "temperature":  s.temperature,
+                "humidity":     s.humidity,
+                "light":        s.light,
+                "pressure_hpa": s.pressure_hpa,
+                "altitude_m":   s.altitude_m,
+            }.items() if v is not None}
+            for name, s in payload.sensors.items()
+        }
     }
-    if payload.readings.pressure_hpa is not None:
-        record["pressure_hpa"] = payload.readings.pressure_hpa
-    if payload.readings.altitude_m is not None:
-        record["altitude_m"] = payload.readings.altitude_m
 
-    # Guardar en Firestore
     if db:
         try:
             db.collection("readings").add(record)
-            print(f"[OK] Firestore: {payload.device_id} T:{payload.readings.temperature}C H:{payload.readings.humidity}%")
+            sensors_str = ", ".join(
+                f"{n} T:{s.temperature}C H:{s.humidity}%"
+                for n, s in payload.sensors.items()
+            )
+            print(f"[OK] Firestore: {payload.device_id} [{sensors_str}]")
         except Exception as e:
             print(f"[ERR] Firestore: {e}")
             _buffer.append(record)
     else:
         _buffer.append(record)
-        print(f"[BUFFER] {payload.device_id} (Firestore no disponible)")
+        print(f"[BUFFER] {payload.device_id}")
 
     if len(_buffer) > MAX_BUFFER:
         _buffer.pop(0)
@@ -137,6 +140,7 @@ def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
         status="ok",
         received_at=now,
         device_id=payload.device_id,
+        sensors_ok=len(payload.sensors),
     )
 
 

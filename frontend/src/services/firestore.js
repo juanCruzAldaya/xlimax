@@ -13,15 +13,34 @@ const COL = 'readings'
  * Cada documento tiene: { t, h, l, deviceId, ts (Timestamp) }
  * La función normaliza a { epoch, t, h, l } para compatibilidad con los charts.
  */
-// El backend escribe temperature/humidity/light (nombre largo)
-// El frontend usa t/h/l (nombre corto) — normalizamos acá
+function avg(values) {
+  const v = values.filter(x => x != null)
+  return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : null
+}
+
+// Soporta dos formatos:
+// Nuevo: { sensors: { interior: {temperature, humidity, light}, exterior: {...} } }
+// Viejo: { temperature, humidity, light }  (backwards compat)
 function normalize(doc) {
-  const ts = doc.ts ?? doc.received_at
+  const ts    = doc.ts ?? doc.received_at
+  const epoch = ts?.toMillis?.() ?? Date.now()
+
+  if (doc.sensors) {
+    const vals = Object.values(doc.sensors)
+    return {
+      epoch,
+      t:       avg(vals.map(s => s.temperature)),
+      h:       avg(vals.map(s => s.humidity)),
+      l:       avg(vals.map(s => s.light)),
+      sensors: doc.sensors,   // guardado para futura UI por sensor
+    }
+  }
+
   return {
-    epoch: ts?.toMillis?.() ?? Date.now(),
-    t:     doc.t ?? doc.temperature ?? null,
-    h:     doc.h ?? doc.humidity    ?? null,
-    l:     doc.l ?? doc.light       ?? null,
+    epoch,
+    t: doc.t ?? doc.temperature ?? null,
+    h: doc.h ?? doc.humidity    ?? null,
+    l: doc.l ?? doc.light       ?? null,
   }
 }
 

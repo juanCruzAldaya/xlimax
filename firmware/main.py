@@ -11,12 +11,10 @@ PASSWORD    = "agustina2025"
 BACKEND_URL = "https://xlimax.onrender.com"
 INTERVAL    = 45  # segundos entre lecturas
 
-VERSION       = "1.3.0"
+VERSION       = "1.4.0"
 FIRMWARE_BASE = "https://raw.githubusercontent.com/juanCruzAldaya/xlimax/master/firmware"
 
-# IDs de cada sensor
-DEVICE_1 = "esp32-agustina-01"
-DEVICE_2 = "esp32-agustina-02"
+DEVICE_ID = "esp32-agustina"   # ID de la placa — los sensores van adentro del JSON
 
 # --- I2C — dos buses independientes ---
 HTU21D_ADDR = 0x40
@@ -26,21 +24,12 @@ HUM_CMD     = 0xF5
 i2c1 = I2C(0, scl=Pin(22), sda=Pin(21), freq=100000)
 i2c2 = I2C(1, scl=Pin(25), sda=Pin(26), freq=100000)
 
-# --- ADC (LDR principal GPIO34) ---
-ldr = ADC(Pin(34))
-ldr.atten(ADC.ATTN_11DB)
-ldr.width(ADC.WIDTH_12BIT)
+# --- ADC LDRs ---
+ldr  = ADC(Pin(34)); ldr.atten(ADC.ATTN_11DB);  ldr.width(ADC.WIDTH_12BIT)
+ldr2 = ADC(Pin(35)); ldr2.atten(ADC.ATTN_11DB); ldr2.width(ADC.WIDTH_12BIT)
 
-# --- ADC (LDR secundario GPIO35) ---
-ldr2 = ADC(Pin(35))
-ldr2.atten(ADC.ATTN_11DB)
-ldr2.width(ADC.WIDTH_12BIT)
-
-# --- Constantes para cálculo de lux (ajustables según LDR) ---
-K     = 12.0
-n     = 1.4
-VCC   = 3.3
-ADC_MAX = 4095.0
+# --- Constantes lux ---
+K = 12.0;  n = 1.4;  VCC = 3.3;  ADC_MAX = 4095.0
 
 # --- Logger remoto ---
 def log(level, msg):
@@ -48,7 +37,7 @@ def log(level, msg):
     try:
         urequests.post(
             f"{BACKEND_URL}/log",
-            json={"device_id": DEVICE_1, "level": level, "message": msg},
+            json={"device_id": DEVICE_ID, "level": level, "message": msg},
             headers={"Content-Type": "application/json"},
             timeout=5
         ).close()
@@ -75,205 +64,158 @@ def connect_wifi():
     error("WiFi FAIL")
     return False
 
-# --- OTA update ---
+# --- OTA ---
 def check_update():
     try:
         info(f"OTA check (actual: v{VERSION})")
         r = urequests.get(f"{FIRMWARE_BASE}/version.txt", timeout=10)
         remote = r.text.strip()
         r.close()
-
         if remote == VERSION:
             info("Firmware al dia")
             return
-
         info(f"Nueva version: {remote} — descargando...")
         r = urequests.get(f"{FIRMWARE_BASE}/main.py", timeout=30)
         nuevo = r.text
         r.close()
-
         with open("main.py", "w") as f:
             f.write(nuevo)
-
         info(f"Firmware actualizado a v{remote} — reiniciando en 3s")
         time.sleep(3)
         machine.reset()
-
     except Exception as e:
         warn(f"OTA error: {e}")
 
-# --- Sensor HTU21D ---
+# --- HTU21D ---
 def read_htu21d(bus, nombre):
     try:
         bus.writeto(HTU21D_ADDR, bytes([TEMP_CMD]))
         time.sleep(0.05)
-        temp_raw = bus.readfrom(HTU21D_ADDR, 3)
-        temp = ((temp_raw[0] << 8) | temp_raw[1]) & 0xFFFC
-        temp_c = -46.85 + 175.72 * (temp / 65536.0)
+        raw = bus.readfrom(HTU21D_ADDR, 3)
+        t = ((raw[0] << 8) | raw[1]) & 0xFFFC
+        temp_c = -46.85 + 175.72 * (t / 65536.0)
 
         bus.writeto(HTU21D_ADDR, bytes([HUM_CMD]))
         time.sleep(0.05)
-        hum_raw = bus.readfrom(HTU21D_ADDR, 3)
-        hum = ((hum_raw[0] << 8) | hum_raw[1]) & 0xFFFC
-        hum_pct = -6.0 + 125.0 * (hum / 65536.0)
+        raw = bus.readfrom(HTU21D_ADDR, 3)
+        h = ((raw[0] << 8) | raw[1]) & 0xFFFC
+        hum_pct = -6.0 + 125.0 * (h / 65536.0)
 
         return round(temp_c, 2), round(hum_pct, 2)
     except Exception as e:
         error(f"HTU21D {nombre}: {e}")
         return None, None
 
-# --- Sensor BMP280 ---
+# --- BMP280 ---
 class BMP280:
-    def __init__(self, i2c, addr=0x76):   # FIX: __init__ no _init_
-        self.i2c  = i2c
-        self.addr = addr
+    def __init__(self, i2c, addr=0x76):
+        self.i2c = i2c; self.addr = addr
         try:
             self.i2c.readfrom_mem(self.addr, 0xD0, 1)
-        except Exception:
+        except:
             raise OSError("BMP280 no encontrado")
-        self._read_calibration()
+        self._calib()
         self.i2c.writeto_mem(self.addr, 0xF4, bytes([0x27]))
         self.i2c.writeto_mem(self.addr, 0xF5, bytes([0xA0]))
 
-    def _read_calibration(self):
-        calib = self.i2c.readfrom_mem(self.addr, 0x88, 24)
-        vals = struct.unpack('<HhhHhhhhhhhh', calib)
-        self.dig_T1 = vals[0]
-        self.dig_T2 = vals[1]
-        self.dig_T3 = vals[2]
-        self.dig_P1 = vals[3]
-        self.dig_P2 = vals[4]
-        self.dig_P3 = vals[5]
-        self.dig_P4 = vals[6]
-        self.dig_P5 = vals[7]
-        self.dig_P6 = vals[8]
-        self.dig_P7 = vals[9]
-        self.dig_P8 = vals[10]
-        self.dig_P9 = vals[11]
-
-    def read_raw(self):
-        data = self.i2c.readfrom_mem(self.addr, 0xF7, 6)
-        adc_p = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4)
-        adc_t = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4)
-        return adc_t, adc_p
-
-    def compensate(self, adc_t, adc_p):
-        var1 = (((adc_t >> 3) - (self.dig_T1 << 1)) * self.dig_T2) >> 11
-        var2 = (((((adc_t >> 4) - self.dig_T1) * ((adc_t >> 4) - self.dig_T1)) >> 12) * self.dig_T3) >> 14
-        t_fine = var1 + var2
-        temp_c = ((t_fine * 5 + 128) >> 8) / 100.0
-
-        var1 = t_fine - 128000
-        var2 = var1 * var1 * self.dig_P6
-        var2 = var2 + ((var1 * self.dig_P5) << 17)
-        var2 = var2 + (self.dig_P4 << 35)
-        var1 = ((var1 * var1 * self.dig_P3) >> 8) + ((var1 * self.dig_P2) << 12)
-        var1 = (((1 << 47) + var1) * self.dig_P1) >> 33
-        if var1 == 0:
-            return temp_c, None
-        p = 1048576 - adc_p
-        p = int((((p << 31) - var2) * 3125) / var1)
-        var1 = (self.dig_P9 * (p >> 13) * (p >> 13)) >> 25
-        var2 = (self.dig_P8 * p) >> 19
-        p = ((p + var1 + var2) >> 8) + (self.dig_P7 << 4)
-        return temp_c, round(p / 25600.0, 2)
+    def _calib(self):
+        c = self.i2c.readfrom_mem(self.addr, 0x88, 24)
+        v = struct.unpack('<HhhHhhhhhhhh', c)
+        (self.T1, self.T2, self.T3,
+         self.P1, self.P2, self.P3, self.P4,
+         self.P5, self.P6, self.P7, self.P8, self.P9) = v
 
     def read(self):
-        return self.compensate(*self.read_raw())
+        d = self.i2c.readfrom_mem(self.addr, 0xF7, 6)
+        adc_p = (d[0] << 12) | (d[1] << 4) | (d[2] >> 4)
+        adc_t = (d[3] << 12) | (d[4] << 4) | (d[5] >> 4)
 
-# --- Inicializar BMP280 en i2c1 ---
-bmp1 = None
-for addr in (0x76, 0x77):
+        v1 = (((adc_t >> 3) - (self.T1 << 1)) * self.T2) >> 11
+        v2 = (((((adc_t >> 4) - self.T1) ** 2) >> 12) * self.T3) >> 14
+        tf = v1 + v2
+        temp_c = ((tf * 5 + 128) >> 8) / 100.0
+
+        v1 = tf - 128000
+        v2 = v1 * v1 * self.P6 + ((v1 * self.P5) << 17) + (self.P4 << 35)
+        v1 = ((v1 * v1 * self.P3) >> 8) + ((v1 * self.P2) << 12)
+        v1 = (((1 << 47) + v1) * self.P1) >> 33
+        if v1 == 0:
+            return temp_c, None
+        p = 1048576 - adc_p
+        p = int((((p << 31) - v2) * 3125) / v1)
+        p = ((p + (self.P9 * (p >> 13) ** 2 >> 25) + (self.P8 * p >> 19)) >> 8) + (self.P7 << 4)
+        return temp_c, round(p / 25600.0, 2)
+
+def init_bmp(bus, nombre):
+    for addr in (0x76, 0x77):
+        try:
+            b = BMP280(bus, addr=addr)
+            info(f"BMP280 {nombre} OK en 0x{addr:02X}")
+            return b
+        except:
+            pass
+    warn(f"BMP280 {nombre} no encontrado")
+    return None
+
+bmp1 = init_bmp(i2c1, "i2c1")
+bmp2 = init_bmp(i2c2, "i2c2")
+
+# --- LDR ---
+def calc_lux(raw):
+    raw = max(0.0, min(ADC_MAX, raw))
+    ratio = max((raw / ADC_MAX), 0.000001)
+    return round(K * (ratio ** (-n)), 2)
+
+def read_ldr(adc_obj, nombre):
     try:
-        bmp1 = BMP280(i2c1, addr=addr)
-        info(f"BMP280(1) OK en 0x{addr:02X}")
-        break
+        return calc_lux(adc_obj.read())
     except Exception as e:
-        warn(f"No BMP280 en i2c1 0x{addr:02X}: {e}")
-if bmp1 is None:
-    warn("BMP280(1) no disponible")
+        error(f"{nombre}: {e}")
+        return 0.0
 
-# --- Inicializar BMP280 en i2c2 ---
-bmp2 = None
-for addr in (0x76, 0x77):
-    try:
-        bmp2 = BMP280(i2c2, addr=addr)
-        info(f"BMP280(2) OK en i2c2 0x{addr:02X}")
-        break
-    except Exception as e:
-        warn(f"No BMP280 en i2c2 0x{addr:02X}: {e}")
-if bmp2 is None:
-    warn("BMP280(2) no disponible")
-
-# --- LDR: calcula lux desde ADC raw ---
-def calc_lux_from_adc(raw_adc):
-    raw_adc = max(0.0, min(ADC_MAX, raw_adc))
-    voltage = (raw_adc / ADC_MAX) * VCC
-    ratio   = max(voltage / VCC, 0.000001)
-    return round(K * (ratio ** (-n)), 2), round(voltage, 3), int(raw_adc)
-
-def read_light():
-    try:
-        return calc_lux_from_adc(ldr.read())
-    except Exception as e:
-        error(f"LDR: {e}")
-        return 0.0, 0.0, 0
-
-def read_light_2():
-    try:
-        return calc_lux_from_adc(ldr2.read())
-    except Exception as e:
-        error(f"LDR2: {e}")
-        return 0.0, 0.0, 0
-
-# --- Presión → altitud ---
-def pressure_to_altitude(pressure_hpa, sea_level_hpa=1013.25):
-    try:
-        return round(44330.0 * (1.0 - (pressure_hpa / sea_level_hpa) ** (1 / 5.255)), 2)
-    except:
-        return None
-
-# --- Leer BMP280 con manejo de error ---
+# --- BMP ---
 def read_bmp(bmp, nombre):
     if bmp is None:
         return None, None
     try:
         _, pressure = bmp.read()
-        altitude = pressure_to_altitude(pressure) if pressure else None
+        if pressure is None:
+            return None, None
+        altitude = round(44330.0 * (1.0 - (pressure / 1013.25) ** (1 / 5.255)), 2)
         return pressure, altitude
     except Exception as e:
-        warn(f"BMP280({nombre}) lectura: {e}")
+        warn(f"BMP {nombre}: {e}")
         return None, None
 
-# --- Envio ---
-def send_reading(device_id, temp, hum, lux=0.0, pressure=None, altitude=None):
+# --- Envio — UN SOLO POST con todos los sensores ---
+def send_all(sensors):
+    """
+    sensors = {
+      "interior": {"temperature": t, "humidity": h, "light": l, ...},
+      "exterior": {...},
+    }
+    """
     try:
         resp = urequests.post(
             f"{BACKEND_URL}/readings",
             json={
-                "device_id": device_id,
-                "readings": {
-                    "temperature":  temp,
-                    "humidity":     hum,
-                    "light":        lux,
-                    "pressure_hpa": pressure,
-                    "altitude_m":   altitude,
-                },
-                "firmware_version": VERSION
+                "device_id":        DEVICE_ID,
+                "firmware_version": VERSION,
+                "sensors":          sensors,
             },
             headers={"Content-Type": "application/json"},
             timeout=10
         )
-        info(f"{device_id} POST {resp.status_code} T:{temp}C H:{hum}% L:{lux} P:{pressure}hPa A:{altitude}m")
+        info(f"POST {resp.status_code} — {len(sensors)} sensores guardados")
         resp.close()
     except Exception as e:
-        error(f"POST {device_id}: {e}")
+        error(f"POST: {e}")
 
 # --- MAIN ---
 info(f"Iniciando XLIMAX v{VERSION}")
 
 if not connect_wifi():
-    warn("Sin WiFi al inicio — reintentando en el loop")
+    warn("Sin WiFi al inicio")
 else:
     check_update()
 
@@ -296,26 +238,30 @@ while True:
             time.sleep(5)
             continue
 
-        lux1, v1, raw1 = read_light()
-        lux2, v2, raw2 = read_light_2()
+        sensors = {}
 
-        t1, h1 = read_htu21d(i2c1, "sensor1")
-        p1, a1 = read_bmp(bmp1, "1")
+        # Sensor interior (i2c1)
+        t1, h1 = read_htu21d(i2c1, "interior")
+        p1, a1 = read_bmp(bmp1, "interior")
         if t1 is not None:
-            send_reading(DEVICE_1, t1, h1, lux1, p1, a1)
-        else:
-            warn("Sensor 1 sin lectura")
+            entry = {"temperature": t1, "humidity": h1, "light": read_ldr(ldr, "LDR1")}
+            if p1 is not None: entry["pressure_hpa"] = p1
+            if a1 is not None: entry["altitude_m"]   = a1
+            sensors["interior"] = entry
 
-        time.sleep(0.5)
-
-        t2, h2 = read_htu21d(i2c2, "sensor2")
-        p2, a2 = read_bmp(bmp2, "2")
+        # Sensor exterior (i2c2)
+        t2, h2 = read_htu21d(i2c2, "exterior")
+        p2, a2 = read_bmp(bmp2, "exterior")
         if t2 is not None:
-            send_reading(DEVICE_2, t2, h2, lux2, p2, a2)
-        else:
-            warn("Sensor 2 sin lectura")
+            entry = {"temperature": t2, "humidity": h2, "light": read_ldr(ldr2, "LDR2")}
+            if p2 is not None: entry["pressure_hpa"] = p2
+            if a2 is not None: entry["altitude_m"]   = a2
+            sensors["exterior"] = entry
 
-        info(f"D1 -> T:{t1}C H:{h1}% L:{lux1} V:{v1}V RAW:{raw1} P:{p1}hPa A:{a1}m")
-        info(f"D2 -> T:{t2}C H:{h2}% L:{lux2} V:{v2}V RAW:{raw2} P:{p2}hPa A:{a2}m")
+        if sensors:
+            send_all(sensors)
+            info(f"interior: T:{t1}C H:{h1}% | exterior: T:{t2}C H:{h2}%")
+        else:
+            warn("Sin lecturas validas en este ciclo")
 
     time.sleep(1)
