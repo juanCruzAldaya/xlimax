@@ -20,7 +20,7 @@ export default function SensorCard({ sensorKey, data, rangePoints, active, onCli
   const stats     = useMemo(() => calcStats(rangeData, sensorKey), [rangeData, sensorKey])
 
   const currentVal = data[data.length - 1]?.[sensorKey]
-  const current    = currentVal ?? '—'
+  const current    = currentVal != null ? (+currentVal).toFixed(2) : '—'
   const prev       = data[data.length - 3]?.[sensorKey]
   const delta      = currentVal != null && prev != null ? +(currentVal - prev).toFixed(1) : null
 
