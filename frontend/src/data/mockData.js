@@ -47,11 +47,19 @@ export const readings = Array.from({ length: POINTS }, (_, i) => {
     lux = Math.max(0, lux);
   }
 
+  /* pressure — small variations around 1013 hPa */
+  const press = 1013.0 + Math.sin((h / 24) * Math.PI) * 1.5 + noise(i, 0.13, 0.29, 0.71) * 0.8;
+
+  /* altitude — derived from pressure */
+  const alt = 44330 * (1 - Math.pow(press / 1013.25, 1 / 5.255));
+
   return {
     epoch,
     t: +t.toFixed(1),
     h: +Math.max(38, Math.min(98, hum)).toFixed(1),
     l: Math.round(Math.max(0, lux)),
+    p: +press.toFixed(2),
+    a: +alt.toFixed(2),
   };
 });
 
@@ -94,6 +102,28 @@ export const SENSOR_CONFIG = {
     textClass: 'text-lime-500',
     gradId: 'grad-l',
     thresholds: { low: 20, high: 80 },
+  },
+  p: {
+    key: 'p',
+    label: 'Presión',
+    labelShort: 'Presión',
+    unit: 'hPa',
+    colorHex: '#8b5cf6',
+    bgClass: 'bg-violet-50',
+    textClass: 'text-violet-500',
+    gradId: 'grad-p',
+    thresholds: { low: 1010, high: 1020 },
+  },
+  a: {
+    key: 'a',
+    label: 'Altitud',
+    labelShort: 'Alt',
+    unit: 'm',
+    colorHex: '#ec4899',
+    bgClass: 'bg-pink-50',
+    textClass: 'text-pink-500',
+    gradId: 'grad-a',
+    thresholds: { low: -50, high: 100 },
   },
 };
 

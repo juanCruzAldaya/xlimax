@@ -1,13 +1,15 @@
-import { Leaf, LayoutDashboard, Thermometer, Droplets, Sun, Zap, Star } from 'lucide-react'
+import { Leaf, LayoutDashboard, Thermometer, Droplets, Sun, Wind, Mountain, Zap, Star } from 'lucide-react'
 
 const NAV = [
   {
     section: 'Monitoreo',
     items: [
       { id: 'overview', label: 'Dashboard',    icon: LayoutDashboard },
-      { id: 't',        label: 'Temperatura',  icon: Thermometer,  dot: '#f97316' },
-      { id: 'h',        label: 'Humedad',      icon: Droplets,     dot: '#3b82f6' },
-      { id: 'l',        label: 'Luminosidad',  icon: Sun,          dot: '#f59e0b' },
+      { id: 't',        label: 'Temperatura',  icon: Thermometer,  dot: '#ef4444' },
+      { id: 'h',        label: 'Humedad',      icon: Droplets,     dot: '#06b6d4' },
+      { id: 'l',        label: 'Luminosidad',  icon: Sun,          dot: '#84cc16' },
+      { id: 'p',        label: 'Presión',      icon: Wind,         dot: '#8b5cf6' },
+      { id: 'a',        label: 'Altitud',      icon: Mountain,     dot: '#ec4899' },
     ],
   },
   {

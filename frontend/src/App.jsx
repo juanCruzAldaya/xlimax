@@ -26,7 +26,7 @@ export default function App() {
   const visibleData = useMemo(() => readings.slice(-range.points), [readings, range.points])
   const lastReading = readings[readings.length - 1]
 
-  const sensorView    = view === 't' || view === 'h' || view === 'l'
+  const sensorView    = view === 't' || view === 'h' || view === 'l' || view === 'p' || view === 'a'
   const currentSensor = sensorView ? view : focusSensor
 
   return (

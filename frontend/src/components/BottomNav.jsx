@@ -1,10 +1,12 @@
-import { LayoutDashboard, Thermometer, Droplets, Sun, Zap, Star } from 'lucide-react'
+import { LayoutDashboard, Thermometer, Droplets, Sun, Wind, Mountain, Zap, Star } from 'lucide-react'
 
 const NAV = [
   { id: 'overview',    label: 'Inicio',   Icon: LayoutDashboard },
-  { id: 't',           label: 'Temp',     Icon: Thermometer,  dot: '#f97316' },
-  { id: 'h',           label: 'Humedad',  Icon: Droplets,     dot: '#3b82f6' },
-  { id: 'l',           label: 'Luz',      Icon: Sun,          dot: '#f59e0b' },
+  { id: 't',           label: 'Temp',     Icon: Thermometer,  dot: '#ef4444' },
+  { id: 'h',           label: 'Hum',      Icon: Droplets,     dot: '#06b6d4' },
+  { id: 'l',           label: 'Luz',      Icon: Sun,          dot: '#84cc16' },
+  { id: 'p',           label: 'Pres',     Icon: Wind,         dot: '#8b5cf6' },
+  { id: 'a',           label: 'Alt',      Icon: Mountain,     dot: '#ec4899' },
   { id: 'control',     label: 'Control',  Icon: Zap },
   { id: 'automation',  label: 'Auto',     Icon: Star },
 ]

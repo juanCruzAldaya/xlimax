@@ -32,7 +32,9 @@ function normalize(doc) {
       t:       avg(vals.map(s => s.temperature)),
       h:       avg(vals.map(s => s.humidity)),
       l:       avg(vals.map(s => s.light)),
-      sensors: doc.sensors,   // guardado para futura UI por sensor
+      p:       avg(vals.map(s => s.pressure_hpa)),
+      a:       avg(vals.map(s => s.altitude_m)),
+      sensors: doc.sensors,
     }
   }
 
