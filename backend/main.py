@@ -113,6 +113,10 @@ def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
         "light":       payload.readings.light,
         "fw":          payload.firmware_version,
     }
+    if payload.readings.pressure_hpa is not None:
+        record["pressure_hpa"] = payload.readings.pressure_hpa
+    if payload.readings.altitude_m is not None:
+        record["altitude_m"] = payload.readings.altitude_m
 
     # Guardar en Firestore
     if db:
