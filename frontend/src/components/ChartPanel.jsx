@@ -11,7 +11,8 @@ const RANGES = [
   { label: '3d',  points: 864 },
 ]
 
-const SENSORS = Object.values(SENSOR_CONFIG)
+// Solo los 3 sensores del combined chart (normalizables a 0-100%)
+const SENSORS_COMBINED = ['t', 'h', 'l'].map(k => SENSOR_CONFIG[k])
 
 /* ── Tooltip individual ── */
 function SingleTooltip({ active, payload, label, sensorKey }) {
@@ -111,7 +112,7 @@ function CombinedChart({ data, rangeIdx, onRangeChange }) {
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={normalized} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <defs>
-              {SENSORS.map(cfg => (
+              {SENSORS_COMBINED.map(cfg => (
                 <linearGradient key={cfg.gradId} id={`${cfg.gradId}-c`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={cfg.colorHex} stopOpacity={0.18} />
                   <stop offset="85%" stopColor={cfg.colorHex} stopOpacity={0}    />
@@ -166,7 +167,7 @@ function CombinedChart({ data, rangeIdx, onRangeChange }) {
 
       {/* Leyenda */}
       <div className="flex gap-6 mt-4 justify-center flex-wrap">
-        {SENSORS.map(cfg => (
+        {SENSORS_COMBINED.map(cfg => (
           <div key={cfg.key} className="flex items-center gap-2 text-xs text-slate-600">
             <span className="w-3 h-3 rounded-full" style={{ background: cfg.colorHex }} />
             {cfg.label}
