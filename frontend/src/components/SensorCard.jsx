@@ -17,9 +17,10 @@ export default function SensorCard({ sensorKey, data, rangePoints, active, onCli
   const rangeData = useMemo(() => data.slice(-rangePoints), [data, rangePoints])
   const stats     = useMemo(() => calcStats(rangeData, sensorKey), [rangeData, sensorKey])
 
-  const current = data[data.length - 1]?.[sensorKey] ?? '—'
-  const prev    = data[data.length - 3]?.[sensorKey]
-  const delta   = prev != null ? +(current - prev).toFixed(1) : null
+  const currentVal = data[data.length - 1]?.[sensorKey]
+  const current    = currentVal ?? '—'
+  const prev       = data[data.length - 3]?.[sensorKey]
+  const delta      = currentVal != null && prev != null ? +(currentVal - prev).toFixed(1) : null
 
   const TrendIcon = delta == null ? Minus : delta > 0.2 ? TrendingUp : delta < -0.2 ? TrendingDown : Minus
   const trendColor = delta == null ? 'text-slate-400'
