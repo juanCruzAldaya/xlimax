@@ -18,28 +18,44 @@ function avg(values) {
   return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : null
 }
 
+function flatNode(s) {
+  if (!s) return { t: null, h: null, l: null, p: null, a: null }
+  return {
+    t: s.temperature  ?? null,
+    h: s.humidity     ?? null,
+    l: s.light        ?? null,
+    p: s.pressure_hpa ?? null,
+    a: s.altitude_m   ?? null,
+  }
+}
+
 // Soporta dos formatos:
-// Nuevo: { sensors: { interior: {temperature, humidity, light}, exterior: {...} } }
+// Nuevo: { sensors: { interior: {...}, exterior: {...} } }
 // Viejo: { temperature, humidity, light }  (backwards compat)
 function normalize(doc) {
   const ts    = doc.ts ?? doc.received_at
   const epoch = ts?.toMillis?.() ?? Date.now()
 
   if (doc.sensors) {
-    const vals = Object.values(doc.sensors)
+    // Guarda cada nodo por separado + promedio para el combined chart
+    const nodes = Object.fromEntries(
+      Object.entries(doc.sensors).map(([name, s]) => [name, flatNode(s)])
+    )
+    const vals = Object.values(nodes)
     return {
       epoch,
-      t:       avg(vals.map(s => s.temperature)),
-      h:       avg(vals.map(s => s.humidity)),
-      l:       avg(vals.map(s => s.light)),
-      p:       avg(vals.map(s => s.pressure_hpa)),
-      a:       avg(vals.map(s => s.altitude_m)),
-      sensors: doc.sensors,
+      nodes,                              // { interior: {t,h,l,p,a}, exterior: {t,h,l,p,a} }
+      t: avg(vals.map(s => s.t)),         // promedio global (combined chart)
+      h: avg(vals.map(s => s.h)),
+      l: avg(vals.map(s => s.l)),
+      p: avg(vals.map(s => s.p)),
+      a: avg(vals.map(s => s.a)),
     }
   }
 
   return {
     epoch,
+    nodes: {},
     t: doc.t ?? doc.temperature ?? null,
     h: doc.h ?? doc.humidity    ?? null,
     l: doc.l ?? doc.light       ?? null,

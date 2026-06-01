@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { SENSOR_CONFIG } from './data/mockData'
 import { useReadings } from './hooks/useReadings'
 import Sidebar from './components/Sidebar'
@@ -17,14 +17,39 @@ const RANGES = [
 ]
 
 export default function App() {
-  const [view,        setView]        = useState('overview')
-  const [rangeIdx,    setRangeIdx]    = useState(2)
-  const [focusSensor, setFocusSensor] = useState('t')
+  const [view,          setView]          = useState('overview')
+  const [rangeIdx,      setRangeIdx]      = useState(2)
+  const [focusSensor,   setFocusSensor]   = useState('t')
+  const [selectedNode,  setSelectedNode]  = useState(null)
 
   const { data: readings, live } = useReadings()
+
+  // Nodos disponibles según el último dato real de Firestore
+  const availableNodes = useMemo(() => {
+    const last = [...readings].reverse().find(d => d.nodes && Object.keys(d.nodes).length > 0)
+    return last ? Object.keys(last.nodes) : []
+  }, [readings])
+
+  // Auto-selecciona el primer nodo cuando llegan datos
+  useEffect(() => {
+    if (availableNodes.length > 0 && !selectedNode) {
+      setSelectedNode(availableNodes[0])
+    }
+  }, [availableNodes, selectedNode])
+
+  // Proyecta los readings al nodo seleccionado
+  const nodeReadings = useMemo(() => {
+    if (!selectedNode) return readings
+    return readings.map(d => {
+      const node = d.nodes?.[selectedNode]
+      if (!node) return { epoch: d.epoch, t: null, h: null, l: null, p: null, a: null }
+      return { epoch: d.epoch, ...node }
+    })
+  }, [readings, selectedNode])
+
   const range       = RANGES[rangeIdx]
-  const visibleData = useMemo(() => readings.slice(-range.points), [readings, range.points])
-  const lastReading = readings[readings.length - 1]
+  const visibleData = useMemo(() => nodeReadings.slice(-range.points), [nodeReadings, range.points])
+  const lastReading = nodeReadings[nodeReadings.length - 1]
 
   const sensorView    = view === 't' || view === 'h' || view === 'l' || view === 'p' || view === 'a'
   const currentSensor = sensorView ? view : focusSensor
@@ -38,7 +63,10 @@ export default function App() {
 
         {view === 'overview' && (
           <div className="p-5 md:p-8 space-y-6">
-            <PageHeader title="Dashboard" subtitle="Monitoreo ambiental en tiempo real" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <PageHeader title="Dashboard" subtitle="Monitoreo ambiental en tiempo real" />
+              <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.keys(SENSOR_CONFIG).map(k => (
                 <SensorCard key={k} sensorKey={k} data={readings} rangePoints={range.points}
@@ -60,7 +88,10 @@ export default function App() {
 
         {sensorView && (
           <div className="p-5 md:p-8 space-y-6">
-            <PageHeader title={SENSOR_CONFIG[view].label} subtitle="Detalle y estadísticas del período" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <PageHeader title={SENSOR_CONFIG[view].label} subtitle="Detalle y estadísticas del período" />
+              <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <SensorCard sensorKey={view} data={readings} rangePoints={range.points} active onClick={() => {}} />
             </div>
@@ -94,6 +125,30 @@ function PageHeader({ title, subtitle }) {
     <div>
       <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
       <p className="text-slate-500 text-sm mt-0.5">{subtitle}</p>
+    </div>
+  )
+}
+
+function NodeSelector({ nodes, selected, onSelect }) {
+  if (nodes.length <= 1) return null
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Sector:</span>
+      <div className="flex gap-1.5">
+        {nodes.map(node => (
+          <button
+            key={node}
+            onClick={() => onSelect(node)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold capitalize transition-colors ${
+              selected === node
+                ? 'bg-emerald-500 text-white shadow-sm'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {node}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
