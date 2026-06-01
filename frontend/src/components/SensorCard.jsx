@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Thermometer, Droplets, Sun, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Thermometer, Droplets, Sun, Wind, Mountain, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts'
 import { SENSOR_CONFIG, calcStats } from '../data/mockData'
 
@@ -7,11 +7,13 @@ const ICONS = {
   t: Thermometer,
   h: Droplets,
   l: Sun,
+  p: Wind,
+  a: Mountain,
 }
 
 export default function SensorCard({ sensorKey, data, rangePoints, active, onClick }) {
   const cfg    = SENSOR_CONFIG[sensorKey]
-  const Icon   = ICONS[sensorKey]
+  const Icon   = ICONS[sensorKey] ?? Minus
 
   const sparkData = useMemo(() => data.slice(-12), [data])
   const rangeData = useMemo(() => data.slice(-rangePoints), [data, rangePoints])
