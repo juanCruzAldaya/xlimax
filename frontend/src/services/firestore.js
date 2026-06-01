@@ -43,6 +43,8 @@ function normalize(doc) {
     t: doc.t ?? doc.temperature ?? null,
     h: doc.h ?? doc.humidity    ?? null,
     l: doc.l ?? doc.light       ?? null,
+    p: doc.pressure_hpa ?? null,
+    a: doc.altitude_m   ?? null,
   }
 }
 
