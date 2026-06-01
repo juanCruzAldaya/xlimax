@@ -42,7 +42,7 @@ function CombinedTooltip({ active, payload, label }) {
       <p className="chart-tooltip__time">
         {d.toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
       </p>
-      {SENSORS.map(cfg => {
+      {SENSORS_COMBINED.map(cfg => {
         const val = raw[cfg.key]
         if (val == null) return null
         return (

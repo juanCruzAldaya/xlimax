@@ -12,5 +12,11 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    match /devices/{deviceId} {
+      // Estado de actuadores — el dashboard lee y escribe toggles
+      // el ESP32 lo lee por polling
+      allow read, write: if true;
+    }
+
   }
 }
