@@ -10,10 +10,10 @@ import AutomationPanel from './components/AutomationPanel'
 import BottomNav from './components/BottomNav'
 
 const RANGES = [
-  { label: '1h',  points: 12  },
-  { label: '6h',  points: 72  },
-  { label: '24h', points: 288 },
-  { label: '3d',  points: 864 },
+  { label: '1h',  hours: 1  },
+  { label: '6h',  hours: 6  },
+  { label: '24h', hours: 24 },
+  { label: '3d',  hours: 72 },
 ]
 
 export default function App() {
@@ -48,7 +48,10 @@ export default function App() {
   }, [readings, selectedNode])
 
   const range       = RANGES[rangeIdx]
-  const visibleData = useMemo(() => nodeReadings.slice(-range.points), [nodeReadings, range.points])
+  const visibleData = useMemo(() => {
+    const cutoff = Date.now() - range.hours * 60 * 60 * 1000
+    return nodeReadings.filter(d => d.epoch >= cutoff)
+  }, [nodeReadings, range.hours])
   const lastReading = nodeReadings[nodeReadings.length - 1]
 
   const sensorView    = view === 't' || view === 'h' || view === 'l' || view === 'p' || view === 'a'
@@ -69,7 +72,7 @@ export default function App() {
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.keys(SENSOR_CONFIG).map(k => (
-                <SensorCard key={k} sensorKey={k} data={nodeReadings} rangePoints={range.points}
+                <SensorCard key={k} sensorKey={k} data={nodeReadings} rangeHours={range.hours}
                   active={k === focusSensor} onClick={() => setFocusSensor(k)} />
               ))}
             </div>
@@ -93,7 +96,7 @@ export default function App() {
               <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <SensorCard sensorKey={view} data={nodeReadings} rangePoints={range.points} active onClick={() => {}} />
+              <SensorCard sensorKey={view} data={nodeReadings} rangeHours={range.hours} active onClick={() => {}} />
             </div>
             <ChartPanel data={visibleData} sensorKey={view} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
             <StatsPanel data={visibleData} sensorKey={view} showDays />

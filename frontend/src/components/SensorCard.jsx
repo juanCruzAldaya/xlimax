@@ -11,13 +11,16 @@ const ICONS = {
   a: Mountain,
 }
 
-export default function SensorCard({ sensorKey, data, rangePoints, active, onClick }) {
+export default function SensorCard({ sensorKey, data, rangeHours, active, onClick }) {
   const cfg    = SENSOR_CONFIG[sensorKey]
   const Icon   = ICONS[sensorKey] ?? Minus
 
   const sparkData = useMemo(() => data.slice(-12), [data])
-  const rangeData = useMemo(() => data.slice(-rangePoints), [data, rangePoints])
-  const stats     = useMemo(() => calcStats(rangeData, sensorKey), [rangeData, sensorKey])
+  const rangeData = useMemo(() => {
+    const cutoff = Date.now() - (rangeHours ?? 24) * 60 * 60 * 1000
+    return data.filter(d => d.epoch >= cutoff)
+  }, [data, rangeHours])
+  const stats = useMemo(() => calcStats(rangeData, sensorKey), [rangeData, sensorKey])
 
   const currentVal = data[data.length - 1]?.[sensorKey]
   const current    = currentVal != null ? (+currentVal).toFixed(2) : '—'

@@ -138,12 +138,12 @@ export function calcStats(data, key) {
   return { min: +min.toFixed(2), max: +max.toFixed(2), avg: +avg.toFixed(2), std: +std.toFixed(2) };
 }
 
-export function formatEpoch(epoch, points) {
+export function formatEpoch(epoch, hours) {
   const d = new Date(epoch);
-  if (points <= 72) {
+  if (hours <= 6) {
     return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   }
-  if (points <= 288) {
+  if (hours <= 24) {
     return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   }
   return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });

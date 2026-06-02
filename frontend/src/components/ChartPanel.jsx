@@ -5,10 +5,10 @@ import {
 import { SENSOR_CONFIG, formatEpoch } from '../data/mockData'
 
 const RANGES = [
-  { label: '1h',  points: 12  },
-  { label: '6h',  points: 72  },
-  { label: '24h', points: 288 },
-  { label: '3d',  points: 864 },
+  { label: '1h',  hours: 1  },
+  { label: '6h',  hours: 6  },
+  { label: '24h', hours: 24 },
+  { label: '3d',  hours: 72 },
 ]
 
 // Solo los 3 sensores del combined chart (normalizables a 0-100%)
@@ -95,8 +95,8 @@ function normalizeData(data) {
 
 /* ── Chart combinado (3 sensores) ── */
 function CombinedChart({ data, rangeIdx, onRangeChange }) {
-  const rangePoints  = RANGES[rangeIdx]?.points ?? 288
-  const normalized   = normalizeData(data)
+  const rangeHours = RANGES[rangeIdx]?.hours ?? 24
+  const normalized = normalizeData(data)
 
   return (
     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
@@ -126,7 +126,7 @@ function CombinedChart({ data, rangeIdx, onRangeChange }) {
               dataKey="epoch" type="number" scale="time"
               domain={['dataMin', 'dataMax']}
               tickCount={7}
-              tickFormatter={e => formatEpoch(e, rangePoints)}
+              tickFormatter={e => formatEpoch(e, rangeHours)}
               tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={false} tickLine={false}
             />
@@ -181,7 +181,7 @@ function CombinedChart({ data, rangeIdx, onRangeChange }) {
 /* ── Chart individual ── */
 function SingleChart({ data, sensorKey, rangeIdx, onRangeChange }) {
   const cfg         = SENSOR_CONFIG[sensorKey]
-  const rangePoints = RANGES[rangeIdx]?.points ?? 288
+  const rangeHours = RANGES[rangeIdx]?.hours ?? 24
 
   const vals    = data.map(d => d[sensorKey]).filter(v => v != null)
   const dataMin = vals.length ? Math.min(...vals) : 0
@@ -213,7 +213,7 @@ function SingleChart({ data, sensorKey, rangeIdx, onRangeChange }) {
               dataKey="epoch" type="number" scale="time"
               domain={['dataMin', 'dataMax']}
               tickCount={7}
-              tickFormatter={e => formatEpoch(e, rangePoints)}
+              tickFormatter={e => formatEpoch(e, rangeHours)}
               tick={{ fill: '#94a3b8', fontSize: 11 }}
               axisLine={false} tickLine={false}
             />
