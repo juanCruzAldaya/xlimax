@@ -7,6 +7,7 @@ import ChartPanel from './components/ChartPanel'
 import StatsPanel from './components/StatsPanel'
 import ControlPanel from './components/ControlPanel'
 import AutomationPanel from './components/AutomationPanel'
+import AnalyticsPanel from './components/AnalyticsPanel'
 import BottomNav from './components/BottomNav'
 
 const RANGES = [
@@ -100,6 +101,21 @@ export default function App() {
             </div>
             <ChartPanel data={visibleData} sensorKey={view} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
             <StatsPanel data={visibleData} sensorKey={view} showDays />
+          </div>
+        )}
+
+        {view === 'analytics' && (
+          <div className="p-5 md:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <PageHeader title="Análisis y Exportación" subtitle="Estadísticas del período y descarga de datos" />
+              <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
+            </div>
+            <AnalyticsPanel
+              readings={readings}
+              availableNodes={availableNodes}
+              rangeHours={range.hours}
+              rangeLabel={range.label}
+            />
           </div>
         )}
 

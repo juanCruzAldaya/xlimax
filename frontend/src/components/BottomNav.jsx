@@ -1,4 +1,4 @@
-import { LayoutDashboard, Thermometer, Droplets, Sun, Wind, Mountain, Zap, Star } from 'lucide-react'
+import { LayoutDashboard, Thermometer, Droplets, Sun, Wind, Mountain, Zap, Star, BarChart2 } from 'lucide-react'
 
 const NAV = [
   { id: 'overview',    label: 'Inicio',   Icon: LayoutDashboard },
@@ -8,7 +8,7 @@ const NAV = [
   { id: 'p',           label: 'Pres',     Icon: Wind,         dot: '#8b5cf6' },
   { id: 'a',           label: 'Alt',      Icon: Mountain,     dot: '#ec4899' },
   { id: 'control',     label: 'Control',  Icon: Zap },
-  { id: 'automation',  label: 'Auto',     Icon: Star },
+  { id: 'analytics',   label: 'Análisis', Icon: BarChart2 },
 ]
 
 export default function BottomNav({ activeView, onNavigate }) {

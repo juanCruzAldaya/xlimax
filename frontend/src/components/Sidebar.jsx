@@ -1,4 +1,4 @@
-import { Leaf, LayoutDashboard, Thermometer, Droplets, Sun, Wind, Mountain, Zap, Star } from 'lucide-react'
+import { Leaf, LayoutDashboard, Thermometer, Droplets, Sun, Wind, Mountain, Zap, Star, BarChart2 } from 'lucide-react'
 
 const NAV = [
   {
@@ -17,6 +17,12 @@ const NAV = [
     items: [
       { id: 'control',    label: 'Actuadores',     icon: Zap },
       { id: 'automation', label: 'Automatización', icon: Star },
+    ],
+  },
+  {
+    section: 'Datos',
+    items: [
+      { id: 'analytics', label: 'Análisis',  icon: BarChart2 },
     ],
   },
 ]
