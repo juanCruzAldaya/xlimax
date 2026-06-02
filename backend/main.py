@@ -31,8 +31,8 @@ from models import ReadingPayload, ReadingResponse
 
 # --- Tuya ---
 TUYA_CHANNELS = {
-    "switch_1": "Luces",
-    "switch_2": "Extractor",
+    "switch_1": "Extractor",
+    "switch_2": "Luces",
     "switch_3": "Ventilador",
 }
 

@@ -4,8 +4,8 @@ import { Sun, Wind, Thermometer, PowerOff, Loader } from 'lucide-react'
 const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'https://xlimax.onrender.com'
 
 const CHANNEL_META = {
-  switch_1: { label: 'Luces',      Icon: Sun         },
-  switch_2: { label: 'Extractor',  Icon: Wind        },
+  switch_1: { label: 'Extractor',  Icon: Wind        },
+  switch_2: { label: 'Luces',      Icon: Sun         },
   switch_3: { label: 'Ventilador', Icon: Thermometer },
 }
 
