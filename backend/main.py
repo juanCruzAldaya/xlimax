@@ -20,8 +20,31 @@ from firebase_admin import credentials, firestore
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from dotenv import load_dotenv
+load_dotenv()
+
+import tinytuya
 
 from models import ReadingPayload, ReadingResponse
+
+# --- Tuya ---
+TUYA_CHANNELS = {
+    "switch_1": "Luces",
+    "switch_2": "Extractor",
+    "switch_3": "Ventilador",
+}
+
+def _tuya_cloud():
+    return tinytuya.Cloud(
+        apiRegion=os.getenv("TUYA_REGION", "us"),
+        apiKey=os.environ["TUYA_ACCESS_ID"],
+        apiSecret=os.environ["TUYA_ACCESS_SECRET"],
+        apiDeviceID=os.environ["TUYA_DEVICE_ID"],
+    )
+
+TUYA_DEVICE_ID = os.getenv("TUYA_DEVICE_ID", "")
 
 # Firebase init
 # Prioridad:
@@ -197,6 +220,45 @@ def get_logs(device_id: str = None, limit: int = 100):
     if device_id:
         logs = [l for l in logs if l["device_id"] == device_id]
     return {"count": len(logs), "logs": list(reversed(logs))}
+
+
+class TuyaCommand(BaseModel):
+    channel: str   # "switch_1" | "switch_2" | "switch_3"
+    value:   bool
+
+
+@app.get("/tuya/status", summary="Estado actual de los 3 canales Tuya")
+def tuya_status():
+    try:
+        cloud = _tuya_cloud()
+        resp  = cloud.getstatus(TUYA_DEVICE_ID)
+        raw   = resp.get("result", [])
+        state = {
+            item["code"]: item["value"]
+            for item in raw
+            if item["code"] in TUYA_CHANNELS
+        }
+        return {
+            "ok":     True,
+            "state":  state,
+            "labels": TUYA_CHANNELS,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.post("/tuya/control", summary="Encender / apagar un canal Tuya")
+def tuya_control(cmd: TuyaCommand):
+    if cmd.channel not in TUYA_CHANNELS:
+        raise HTTPException(status_code=400, detail=f"Canal inválido: {cmd.channel}")
+    try:
+        cloud = _tuya_cloud()
+        cloud.sendcommand(TUYA_DEVICE_ID, {
+            "commands": [{"code": cmd.channel, "value": cmd.value}]
+        })
+        return {"ok": True, "channel": cmd.channel, "value": cmd.value}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @app.get(
