@@ -13,7 +13,7 @@ import os
 import json
 import base64
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -259,6 +259,43 @@ def tuya_control(cmd: TuyaCommand):
         return {"ok": True, "channel": cmd.channel, "value": cmd.value}
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/readings/stats", summary="Conteo de registros en Firestore")
+def readings_stats():
+    """
+    Devuelve conteos desde Firestore sin bajar los documentos completos.
+    Usa count() aggregation para ser eficiente.
+    """
+    from datetime import timezone as tz
+    now      = datetime.now(tz.utc)
+    # Ayer 00:00 ART = ayer 03:00 UTC
+    ayer_art = (now - timedelta(hours=now.hour, minutes=now.minute, seconds=now.second,
+                                microseconds=now.microsecond)).replace(tzinfo=tz.utc)
+    ayer_utc = ayer_art - timedelta(hours=3) - timedelta(days=1)
+
+    if not db:
+        return {"total": len(_buffer), "desde_ayer": 0, "source": "buffer"}
+
+    try:
+        total_result = db.collection("readings").count().get()
+        total = total_result[0][0].value
+
+        ayer_result = (
+            db.collection("readings")
+            .where("received_at", ">=", ayer_utc)
+            .count().get()
+        )
+        desde_ayer = ayer_result[0][0].value
+
+        return {
+            "total":       total,
+            "desde_ayer":  desde_ayer,
+            "desde_utc":   ayer_utc.isoformat(),
+            "source":      "firestore",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get(

@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
-import { Download, FileText, Table } from 'lucide-react'
-import { SENSOR_CONFIG, calcStats } from '../data/mockData'
+import { useMemo, useState, useEffect } from 'react'
+import { FileText, Table, Database } from 'lucide-react'
+import { SENSOR_CONFIG } from '../data/mockData'
+
+const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'https://xlimax.onrender.com'
 
 const SENSORS = ['t', 'h', 'l', 'p', 'a']
 
@@ -36,7 +38,7 @@ function toCSV(data, nodes) {
   return [headers.join(','), ...rows].join('\n')
 }
 
-function toHTML(data, nodes, rangeLabel) {
+function toHTML(data, nodes, rangeLabel, globalStats) {
   const nodeHeaders = nodes.flatMap(n => [
     `${n} T°C`, `${n} H%`, `${n} Luz`, `${n} Presión`, `${n} Altitud`
   ])
@@ -76,6 +78,10 @@ function toHTML(data, nodes, rangeLabel) {
     ['<th>Mín</th><th>Máx</th><th>Prom</th>']
   ).join('')
 
+  const globalRow = globalStats ? `
+    <p>Total histórico en Firestore: <span class="badge">${globalStats.total?.toLocaleString('es-AR')} registros</span>
+    &nbsp; Desde ayer: <span class="badge">${globalStats.desde_ayer?.toLocaleString('es-AR')} registros</span></p>` : ''
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -95,7 +101,8 @@ function toHTML(data, nodes, rangeLabel) {
 </head>
 <body>
 <h1>📊 XLIMAX — Reporte de datos</h1>
-<p>Período: <span class="badge">${rangeLabel}</span> &nbsp; Registros: <span class="badge">${data.length}</span> &nbsp; Nodos: <span class="badge">${nodes.join(', ')}</span></p>
+<p>Período: <span class="badge">${rangeLabel}</span> &nbsp; Registros en rango: <span class="badge">${data.length}</span> &nbsp; Nodos: <span class="badge">${nodes.join(', ')}</span></p>
+${globalRow}
 
 <h2>Estadísticas del período</h2>
 <table>
@@ -124,6 +131,15 @@ function toHTML(data, nodes, rangeLabel) {
 
 /* ── Componente principal ── */
 export default function AnalyticsPanel({ readings, availableNodes, rangeHours, rangeLabel }) {
+  const [globalStats, setGlobalStats] = useState(null)
+
+  useEffect(() => {
+    fetch(`${BACKEND}/readings/stats`)
+      .then(r => r.json())
+      .then(setGlobalStats)
+      .catch(() => {})
+  }, [])
+
   const visibleData = useMemo(() => {
     const cutoff = Date.now() - rangeHours * 60 * 60 * 1000
     return readings.filter(d => d.epoch >= cutoff)
@@ -138,13 +154,37 @@ export default function AnalyticsPanel({ readings, availableNodes, rangeHours, r
   }
 
   function handleHTML() {
-    const html = toHTML(visibleData, nodes, rangeLabel)
+    const html = toHTML(visibleData, nodes, rangeLabel, globalStats)
     const fecha = new Date().toISOString().slice(0, 10)
     downloadFile(html, `xlimax-${fecha}-${rangeLabel}.html`, 'text/html')
   }
 
   return (
     <div className="space-y-6">
+
+      {/* Conteo global desde Firestore */}
+      {globalStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Total histórico', value: globalStats.total, icon: Database, color: 'text-violet-500', bg: 'bg-violet-50' },
+            { label: 'Desde ayer', value: globalStats.desde_ayer, icon: Database, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: `En rango ${rangeLabel}`, value: null, icon: Database, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+          ].map((item, i) => (
+            <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+              <div className={`p-3 rounded-2xl ${item.bg}`}>
+                <item.icon size={20} className={item.color} />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-medium">{item.label}</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {(item.value ?? visibleData.length).toLocaleString('es-AR')}
+                </p>
+                <p className="text-xs text-slate-400">registros</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Header con conteo y botones */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
