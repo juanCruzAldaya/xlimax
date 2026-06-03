@@ -214,12 +214,13 @@ export default function AnalyticsPanel({ readings, availableNodes }) {
       {/* Header con conteo y botones */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
         <div>
-          <p className="text-sm text-slate-500">Registros en el período</p>
-          <p className="text-3xl font-bold text-slate-900">{visibleData.length.toLocaleString()}</p>
+          <p className="text-sm text-slate-500">Registros desde ayer</p>
+          <p className="text-3xl font-bold text-slate-900">
+            {globalStats ? globalStats.desde_ayer.toLocaleString('es-AR') : '…'}
+          </p>
           <p className="text-xs text-slate-400 mt-1">
-            {visibleData.length > 0
-              ? `${new Date(visibleData[0].epoch).toLocaleString('es-AR')} → ${new Date(visibleData[visibleData.length - 1].epoch).toLocaleString('es-AR')}`
-              : 'Sin datos en el rango seleccionado'}
+            En vista actual ({range.label}): <strong className="text-slate-600">{visibleData.length.toLocaleString()}</strong> registros
+            {visibleData.length > 0 && ` · ${new Date(visibleData[0].epoch).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })} → ${new Date(visibleData[visibleData.length - 1].epoch).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}`}
           </p>
         </div>
         <div className="flex gap-3">
