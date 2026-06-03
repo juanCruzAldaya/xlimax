@@ -113,8 +113,6 @@ export default function App() {
             <AnalyticsPanel
               readings={readings}
               availableNodes={availableNodes}
-              rangeHours={range.hours}
-              rangeLabel={range.label}
             />
           </div>
         )}

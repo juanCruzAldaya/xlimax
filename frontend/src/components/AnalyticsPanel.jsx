@@ -129,9 +129,17 @@ ${globalRow}
 </html>`
 }
 
+const RANGES = [
+  { label: '6h',  hours: 6  },
+  { label: '24h', hours: 24 },
+  { label: '3d',  hours: 72 },
+  { label: '7d',  hours: 168 },
+]
+
 /* ── Componente principal ── */
-export default function AnalyticsPanel({ readings, availableNodes, rangeHours, rangeLabel }) {
+export default function AnalyticsPanel({ readings, availableNodes }) {
   const [globalStats, setGlobalStats] = useState(null)
+  const [rangeIdx,    setRangeIdx]    = useState(1)  // default: 24h
 
   useEffect(() => {
     fetch(`${BACKEND}/readings/stats`)
@@ -140,23 +148,25 @@ export default function AnalyticsPanel({ readings, availableNodes, rangeHours, r
       .catch(() => {})
   }, [])
 
+  const range = RANGES[rangeIdx]
+
   const visibleData = useMemo(() => {
-    const cutoff = Date.now() - rangeHours * 60 * 60 * 1000
+    const cutoff = Date.now() - range.hours * 60 * 60 * 1000
     return readings.filter(d => d.epoch >= cutoff)
-  }, [readings, rangeHours])
+  }, [readings, range.hours])
 
   const nodes = availableNodes.length > 0 ? availableNodes : ['interior']
 
   function handleCSV() {
     const csv = toCSV(visibleData, nodes)
     const fecha = new Date().toISOString().slice(0, 10)
-    downloadFile(csv, `xlimax-${fecha}-${rangeLabel}.csv`, 'text/csv;charset=utf-8;')
+    downloadFile(csv, `xlimax-${fecha}-${range.label}.csv`, 'text/csv;charset=utf-8;')
   }
 
   function handleHTML() {
-    const html = toHTML(visibleData, nodes, rangeLabel, globalStats)
+    const html = toHTML(visibleData, nodes, range.label, globalStats)
     const fecha = new Date().toISOString().slice(0, 10)
-    downloadFile(html, `xlimax-${fecha}-${rangeLabel}.html`, 'text/html')
+    downloadFile(html, `xlimax-${fecha}-${range.label}.html`, 'text/html')
   }
 
   return (
@@ -168,7 +178,7 @@ export default function AnalyticsPanel({ readings, availableNodes, rangeHours, r
           {[
             { label: 'Total histórico', value: globalStats.total, icon: Database, color: 'text-violet-500', bg: 'bg-violet-50' },
             { label: 'Desde ayer', value: globalStats.desde_ayer, icon: Database, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: `En rango ${rangeLabel}`, value: null, icon: Database, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+            { label: `En rango ${range.label}`, value: null, icon: Database, color: 'text-cyan-600', bg: 'bg-cyan-50' },
           ].map((item, i) => (
             <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
               <div className={`p-3 rounded-2xl ${item.bg}`}>
@@ -185,6 +195,21 @@ export default function AnalyticsPanel({ readings, availableNodes, rangeHours, r
           ))}
         </div>
       )}
+
+      {/* Selector de rango propio */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Período:</span>
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+          {RANGES.map((r, idx) => (
+            <button key={r.label} onClick={() => setRangeIdx(idx)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                rangeIdx === idx ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Header con conteo y botones */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
