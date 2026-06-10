@@ -3,19 +3,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     match /readings/{docId} {
-      // Lectura pública — el dashboard no requiere login
-      allow read: if true;
-
-      // Escritura: solo desde el backend con Firebase Admin SDK
-      // (desactivar antes de producción si no hay Admin SDK configurado)
-      // TODO: cambiar a `if request.auth != null` cuando se sume auth
-      allow write: if true;
+      allow read: if request.auth != null;
+      allow write: if true; // Admin SDK del backend bypasea las reglas
     }
 
     match /devices/{deviceId} {
-      // Estado de actuadores — el dashboard lee y escribe toggles
-      // el ESP32 lo lee por polling
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
   }

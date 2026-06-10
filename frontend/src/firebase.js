@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getAuth, signInAnonymously } from 'firebase/auth'
 import { getAnalytics, isSupported } from 'firebase/analytics'
 
 const firebaseConfig = {
@@ -12,8 +13,12 @@ const firebaseConfig = {
   measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
-export const app = initializeApp(firebaseConfig)
-export const db  = getFirestore(app)
+export const app  = initializeApp(firebaseConfig)
+export const db   = getFirestore(app)
+export const auth = getAuth(app)
+
+/* Autenticación anónima silenciosa — requerida por las reglas de Firestore */
+signInAnonymously(auth).catch(() => {})
 
 /* Analytics solo funciona en browsers reales, no en SSR/preview */
 isSupported().then(ok => { if (ok) getAnalytics(app) })
