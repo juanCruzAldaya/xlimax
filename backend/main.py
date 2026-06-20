@@ -322,11 +322,16 @@ def _parse_iso(s: str) -> datetime:
 
 
 def _bucket_start(ts: datetime, bucket: str) -> datetime:
-    """Trunca un timestamp UTC al inicio de su bucket (hora o día)."""
+    """Trunca un timestamp UTC al inicio de su bucket (hora o día).
+
+    Reconstruye un datetime PLANO: los timestamps de Firestore son
+    DatetimeWithNanoseconds y, tras un .replace(), fallan al re-serializarse
+    ('object has no attribute _nanosecond') cuando se escriben de vuelta.
+    """
     ts = ts.astimezone(timezone.utc)
     if bucket == "day":
-        return ts.replace(hour=0, minute=0, second=0, microsecond=0)
-    return ts.replace(minute=0, second=0, microsecond=0)
+        return datetime(ts.year, ts.month, ts.day, tzinfo=timezone.utc)
+    return datetime(ts.year, ts.month, ts.day, ts.hour, tzinfo=timezone.utc)
 
 
 _ROLLUP_SENSORS = list(_HISTORY_SENSORS.items())  # [("t","temperature"), ...]
