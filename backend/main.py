@@ -484,9 +484,11 @@ def backfill_hourly(
     (set/overwrite, idempotente). Correr una vez tras desplegar el rollup para
     poblar el histórico con los datos ya almacenados.
     """
+    # Cerrado por default: requiere ADMIN_TOKEN en el entorno. Para reusarlo,
+    # setear ADMIN_TOKEN en Render y pasar ?token=... que coincida.
     admin = os.getenv("ADMIN_TOKEN")
-    if admin and token != admin:
-        raise HTTPException(status_code=403, detail="token inválido")
+    if not admin or token != admin:
+        raise HTTPException(status_code=403, detail="endpoint deshabilitado (requiere ADMIN_TOKEN)")
     if not db:
         raise HTTPException(status_code=503, detail="Firestore no disponible")
 
