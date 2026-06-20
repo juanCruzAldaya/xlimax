@@ -90,6 +90,11 @@ app.add_middleware(
 _buffer: List[dict] = []
 MAX_BUFFER = 1000
 
+# Retención de lecturas crudas. El TTL de Firestore borra los docs cuyo
+# expire_at quedó en el pasado. Los históricos largos salen del rollup
+# readings_hourly (que NO se borra). Ver TTL policy sobre el campo expire_at.
+RETENTION_DAYS = 21
+
 # buffer de logs del ESP32
 _logs: List[dict] = []
 MAX_LOGS = 500
@@ -128,6 +133,7 @@ def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
         "device_id":   payload.device_id,
         "ts":          effective_ts,
         "received_at": now,
+        "expire_at":   now + timedelta(days=RETENTION_DAYS),
         "fw":          payload.firmware_version,
         "sensors": {
             name: {k: v for k, v in {
