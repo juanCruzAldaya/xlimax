@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { SENSOR_CONFIG } from './data/mockData'
 import { useReadings } from './hooks/useReadings'
+import { useHistoryRange } from './hooks/useHistoryRange'
 import Sidebar from './components/Sidebar'
 import SensorCard from './components/SensorCard'
 import ChartPanel from './components/ChartPanel'
@@ -57,6 +58,20 @@ export default function App() {
   }, [nodeReadings, range.hours])
   const lastReading = nodeReadings[nodeReadings.length - 1]
 
+  // El stream en vivo (onSnapshot) solo cubre ~pocas horas. Para rangos largos
+  // tiramos del histórico downsampled (hourly) del backend. ≤6h sigue en vivo (alta-res).
+  const LIVE_MAX_HOURS = 6
+  const useHistory = range.hours > LIVE_MAX_HOURS && live
+  const { points: historyPoints, loading: histLoading, error: histError } = useHistoryRange(range.hours, useHistory)
+
+  // Datos para charts/stats según el rango: vivo (corto) o histórico hourly (largo).
+  // Si el histórico falla, cae al vivo (~últimas horas) para no quedar en blanco.
+  const rangeData = useMemo(() => {
+    if (!useHistory || histError) return visibleData
+    return historyPoints.map(p => ({ epoch: p.epoch, ...(p.nodes?.[selectedNode] ?? {}) }))
+  }, [useHistory, histError, visibleData, historyPoints, selectedNode])
+  const rangeLoading = useHistory && histLoading && historyPoints.length === 0
+
   const sensorView    = view === 't' || view === 'h' || view === 'l' || view === 'p' || view === 'a'
   const currentSensor = sensorView ? view : focusSensor
 
@@ -75,13 +90,14 @@ export default function App() {
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.keys(SENSOR_CONFIG).map(k => (
-                <SensorCard key={k} sensorKey={k} data={nodeReadings} rangeHours={range.hours}
+                <SensorCard key={k} sensorKey={k} data={nodeReadings}
+                  statsData={useHistory ? rangeData : undefined} rangeHours={range.hours}
                   active={k === focusSensor} onClick={() => setFocusSensor(k)} />
               ))}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <ChartPanel data={visibleData} sensorKey="combined"
+                <ChartPanel data={rangeData} sensorKey="combined" loading={rangeLoading}
                   rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
               </div>
               <div className="space-y-5">
@@ -99,10 +115,11 @@ export default function App() {
               <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <SensorCard sensorKey={view} data={nodeReadings} rangeHours={range.hours} active onClick={() => {}} />
+              <SensorCard sensorKey={view} data={nodeReadings}
+                statsData={useHistory ? rangeData : undefined} rangeHours={range.hours} active onClick={() => {}} />
             </div>
-            <ChartPanel data={visibleData} sensorKey={view} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
-            <StatsPanel data={visibleData} sensorKey={view} showDays />
+            <ChartPanel data={rangeData} sensorKey={view} loading={rangeLoading} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
+            <StatsPanel data={rangeData} sensorKey={view} showDays />
           </div>
         )}
 
@@ -112,7 +129,7 @@ export default function App() {
               <PageHeader title="VPD" subtitle="Déficit de presión de vapor — foliar y de aire" />
               <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
             </div>
-            <VpdPanel data={visibleData} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
+            <VpdPanel data={rangeData} loading={rangeLoading} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
           </div>
         )}
 

@@ -2,7 +2,18 @@ import {
   AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
+import { Loader2 } from 'lucide-react'
 import { SENSOR_CONFIG, formatEpoch } from '../data/mockData'
+
+/* Spinner mientras se baja el histórico (rangos largos) */
+function ChartLoading() {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+      <Loader2 size={26} className="animate-spin" />
+      <span className="text-sm">Cargando histórico…</span>
+    </div>
+  )
+}
 
 const RANGES = [
   { label: '1h',  hours: 1  },
@@ -94,7 +105,7 @@ function normalizeData(data) {
 }
 
 /* ── Chart combinado (3 sensores) ── */
-function CombinedChart({ data, rangeIdx, onRangeChange }) {
+function CombinedChart({ data, rangeIdx, onRangeChange, loading }) {
   const rangeHours = RANGES[rangeIdx]?.hours ?? 24
   const normalized = normalizeData(data)
 
@@ -109,6 +120,7 @@ function CombinedChart({ data, rangeIdx, onRangeChange }) {
       </div>
 
       <div className="h-64">
+        {loading ? <ChartLoading /> : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={normalized} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <defs>
@@ -163,6 +175,7 @@ function CombinedChart({ data, rangeIdx, onRangeChange }) {
               isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
 
       {/* Leyenda */}
@@ -179,7 +192,7 @@ function CombinedChart({ data, rangeIdx, onRangeChange }) {
 }
 
 /* ── Chart individual ── */
-function SingleChart({ data, sensorKey, rangeIdx, onRangeChange }) {
+function SingleChart({ data, sensorKey, rangeIdx, onRangeChange, loading }) {
   const cfg         = SENSOR_CONFIG[sensorKey]
   const rangeHours = RANGES[rangeIdx]?.hours ?? 24
 
@@ -200,6 +213,7 @@ function SingleChart({ data, sensorKey, rangeIdx, onRangeChange }) {
       </div>
 
       <div className="h-60">
+        {loading ? <ChartLoading /> : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
             <defs>
@@ -235,6 +249,7 @@ function SingleChart({ data, sensorKey, rangeIdx, onRangeChange }) {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
 
       <div className="flex items-center gap-2 mt-4 justify-center">
@@ -246,9 +261,9 @@ function SingleChart({ data, sensorKey, rangeIdx, onRangeChange }) {
 }
 
 /* ── Export principal ── */
-export default function ChartPanel({ data, sensorKey, rangeIdx, onRangeChange }) {
+export default function ChartPanel({ data, sensorKey, rangeIdx, onRangeChange, loading }) {
   if (sensorKey === 'combined') {
-    return <CombinedChart data={data} rangeIdx={rangeIdx} onRangeChange={onRangeChange} />
+    return <CombinedChart data={data} rangeIdx={rangeIdx} onRangeChange={onRangeChange} loading={loading} />
   }
-  return <SingleChart data={data} sensorKey={sensorKey} rangeIdx={rangeIdx} onRangeChange={onRangeChange} />
+  return <SingleChart data={data} sensorKey={sensorKey} rangeIdx={rangeIdx} onRangeChange={onRangeChange} loading={loading} />
 }

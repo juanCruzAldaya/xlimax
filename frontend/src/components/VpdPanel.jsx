@@ -3,7 +3,7 @@ import {
   ComposedChart, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea,
 } from 'recharts'
-import { Gauge, Info } from 'lucide-react'
+import { Gauge, Info, Loader2 } from 'lucide-react'
 import { formatEpoch } from '../data/mockData'
 import {
   vpdLeaf, vpdAir, classifyVpd,
@@ -82,7 +82,7 @@ function VpdTooltip({ active, payload, label }) {
   )
 }
 
-export default function VpdPanel({ data, rangeIdx, onRangeChange }) {
+export default function VpdPanel({ data, rangeIdx, onRangeChange, loading }) {
   const [offset, setOffset] = useState(LEAF_OFFSET_DEFAULT)
   const rangeHours = RANGES[rangeIdx]?.hours ?? 24
 
@@ -170,6 +170,12 @@ export default function VpdPanel({ data, rangeIdx, onRangeChange }) {
         </div>
 
         <div className="h-72">
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+              <Loader2 size={26} className="animate-spin" />
+              <span className="text-sm">Cargando histórico…</span>
+            </div>
+          ) : (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={series} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <defs>
@@ -209,6 +215,7 @@ export default function VpdPanel({ data, rangeIdx, onRangeChange }) {
                 dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
+          )}
         </div>
 
         <div className="flex gap-6 mt-4 justify-center text-xs text-slate-600">

@@ -12,15 +12,18 @@ const ICONS = {
   v: Gauge,
 }
 
-export default function SensorCard({ sensorKey, data, rangeHours, active, onClick }) {
+export default function SensorCard({ sensorKey, data, statsData, rangeHours, active, onClick }) {
   const cfg    = SENSOR_CONFIG[sensorKey]
   const Icon   = ICONS[sensorKey] ?? Minus
 
+  // Valor actual + spark salen del stream en vivo (`data`); min/máx del período
+  // pueden venir de `statsData` (histórico) cuando el rango excede lo que hay en vivo.
   const sparkData = useMemo(() => data.slice(-12), [data])
   const rangeData = useMemo(() => {
+    const src = statsData ?? data
     const cutoff = Date.now() - (rangeHours ?? 24) * 60 * 60 * 1000
-    return data.filter(d => d.epoch >= cutoff)
-  }, [data, rangeHours])
+    return src.filter(d => d.epoch >= cutoff)
+  }, [data, statsData, rangeHours])
   const stats = useMemo(() => calcStats(rangeData, sensorKey), [rangeData, sensorKey])
 
   const currentVal = data[data.length - 1]?.[sensorKey]
