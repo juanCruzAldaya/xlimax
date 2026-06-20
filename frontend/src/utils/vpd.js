@@ -27,11 +27,12 @@ export function vpdAir(tempC, rh) {
   return +(svp(tempC) * (1 - rh / 100)).toFixed(2)
 }
 
-/** VPD foliar (kPa). Asume hoja = aire − offset. Clampa negativos a 0. */
+/** VPD foliar (kPa). Asume hoja = aire − offset.
+ *  Puede ser NEGATIVO: la hoja está en/bajo el punto de rocío → condensación. */
 export function vpdLeaf(tempC, rh, offset = LEAF_OFFSET_DEFAULT) {
   if (tempC == null || rh == null) return null
   const leaf = svp(tempC - offset) - svp(tempC) * (rh / 100)
-  return +Math.max(0, leaf).toFixed(2)
+  return +leaf.toFixed(2)
 }
 
 /* Zonas objetivo por etapa de cultivo (kPa).
@@ -47,8 +48,10 @@ export const VPD_ZONES = [
 /** Escala superior del gauge de VPD (kPa). */
 export const VPD_MAX = 2.0
 
-/** Clasifica un valor de VPD en su zona. Devuelve la zona o null. */
+/** Clasifica un valor de VPD en su zona. Devuelve la zona o null.
+ *  Negativo (condensación) cae en la primera zona (muy húmedo). */
 export function classifyVpd(vpd) {
   if (vpd == null) return null
+  if (vpd < VPD_ZONES[0].min) return VPD_ZONES[0]
   return VPD_ZONES.find(z => vpd >= z.min && vpd < z.max) ?? VPD_ZONES[VPD_ZONES.length - 1]
 }
