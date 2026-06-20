@@ -1,0 +1,41 @@
+name: Archivo crudo Firestore -> GCS
+
+# Exporta a Cloud Storage las lecturas crudas que están por vencer (TTL 21 días)
+# para preservar el histórico crudo completo. Archivos por día, idempotentes.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC (03:00 ART), diario
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'Desde (YYYY-MM-DD) — opcional, backfill manual'
+        required: false
+      to:
+        description: 'Hasta (YYYY-MM-DD) — opcional'
+        required: false
+      force:
+        description: 'Re-exportar aunque ya exista (poner 1)'
+        required: false
+        default: ''
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install firebase-admin
+
+      - name: Export readings -> GCS
+        env:
+          FIREBASE_KEY_B64: ${{ secrets.FIREBASE_KEY_B64 }}
+          ARCHIVE_FROM:     ${{ github.event.inputs.from }}
+          ARCHIVE_TO:       ${{ github.event.inputs.to }}
+          ARCHIVE_FORCE:    ${{ github.event.inputs.force }}
+        run: python backend/scripts/archive_readings.py
