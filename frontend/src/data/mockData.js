@@ -2,6 +2,8 @@
    Interval: 5 min | Points: 864 (3 días × 288 lecturas/día)
    Timezone: ART = UTC-3 */
 
+import { vpdLeaf, vpdAir } from '../utils/vpd'
+
 function noise(i, a = 0.7, b = 1.3, c = 2.1) {
   return Math.sin(i * a) * 0.50
        + Math.sin(i * b) * 0.30
@@ -53,13 +55,18 @@ export const readings = Array.from({ length: POINTS }, (_, i) => {
   /* altitude — derived from pressure */
   const alt = 44330 * (1 - Math.pow(press / 1013.25, 1 / 5.255));
 
+  const tR = +t.toFixed(1);
+  const hR = +Math.max(38, Math.min(98, hum)).toFixed(1);
+
   return {
     epoch,
-    t: +t.toFixed(1),
-    h: +Math.max(38, Math.min(98, hum)).toFixed(1),
+    t: tR,
+    h: hR,
     l: Math.round(Math.max(0, lux)),
     p: +press.toFixed(2),
     a: +alt.toFixed(2),
+    v: vpdLeaf(tR, hR),
+    vair: vpdAir(tR, hR),
   };
 });
 
@@ -124,6 +131,17 @@ export const SENSOR_CONFIG = {
     textClass: 'text-pink-500',
     gradId: 'grad-a',
     thresholds: { low: -50, high: 100 },
+  },
+  v: {
+    key: 'v',
+    label: 'VPD',
+    labelShort: 'VPD',
+    unit: 'kPa',
+    colorHex: '#14b8a6',
+    bgClass: 'bg-teal-50',
+    textClass: 'text-teal-500',
+    gradId: 'grad-v',
+    thresholds: { low: 0.8, high: 1.6 },
   },
 };
 

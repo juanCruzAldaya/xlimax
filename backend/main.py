@@ -18,7 +18,7 @@ from typing import List
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -149,6 +149,11 @@ def ingest_reading(payload: ReadingPayload) -> ReadingResponse:
                 for n, s in payload.sensors.items()
             )
             print(f"[OK] Firestore: {payload.device_id} [{sensors_str}]")
+            # Rollup horario para históricos (no debe romper la ingesta si falla)
+            try:
+                _rollup_hourly(record["sensors"], payload.device_id, effective_ts)
+            except Exception as e:
+                print(f"[WARN] rollup hourly: {e}")
         except Exception as e:
             print(f"[ERR] Firestore: {e}")
             _buffer.append(record)
@@ -293,6 +298,261 @@ def readings_stats():
             "desde_ayer":  desde_ayer,
             "desde_utc":   ayer_utc.isoformat(),
             "source":      "firestore",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Sensores que se promedian en el downsampling (clave corta usada por el frontend)
+_HISTORY_SENSORS = {
+    "t": "temperature",
+    "h": "humidity",
+    "l": "light",
+    "p": "pressure_hpa",
+    "a": "altitude_m",
+}
+
+
+def _parse_iso(s: str) -> datetime:
+    """ISO-8601 → datetime tz-aware (UTC). Acepta sufijo 'Z'."""
+    dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _bucket_start(ts: datetime, bucket: str) -> datetime:
+    """Trunca un timestamp UTC al inicio de su bucket (hora o día)."""
+    ts = ts.astimezone(timezone.utc)
+    if bucket == "day":
+        return ts.replace(hour=0, minute=0, second=0, microsecond=0)
+    return ts.replace(minute=0, second=0, microsecond=0)
+
+
+_ROLLUP_SENSORS = list(_HISTORY_SENSORS.items())  # [("t","temperature"), ...]
+HOURLY_COL = "readings_hourly"
+
+
+def _rollup_hourly(sensors: dict, device_id: str, ts: datetime) -> None:
+    """
+    Acumula sumas/conteos por hora en `readings_hourly` usando Increment
+    (atómico, sin lectura previa). Permite históricos de rangos largos sin
+    escanear miles de documentos crudos: el endpoint de histórico lee de acá.
+
+    Doc id: "{device_id}_{YYYYMMDDHH}" (UTC). Estructura:
+      { bucket_ts, device_id, count, nodes: { interior: {t_sum,t_n,...}, ... } }
+    """
+    if not db:
+        return
+    hour   = _bucket_start(ts, "hour")
+    doc_id = f"{device_id}_{hour.strftime('%Y%m%d%H')}"
+
+    nodes_inc = {}
+    for node, s in (sensors or {}).items():
+        node_inc = {}
+        for short, long in _ROLLUP_SENSORS:
+            val = s.get(long)
+            if val is None:
+                continue
+            node_inc[f"{short}_sum"] = firestore.Increment(val)
+            node_inc[f"{short}_n"]   = firestore.Increment(1)
+        if node_inc:
+            nodes_inc[node] = node_inc
+
+    db.collection(HOURLY_COL).document(doc_id).set({
+        "bucket_ts": hour,
+        "device_id": device_id,
+        "count":     firestore.Increment(1),
+        "nodes":     nodes_inc,
+    }, merge=True)
+
+
+@app.get("/readings/history", summary="Histórico downsampled por hora/día")
+def readings_history(
+    from_: str = Query(None, alias="from", description="ISO-8601 UTC. Default: hace 7 días"),
+    to:    str = Query(None, description="ISO-8601 UTC. Default: ahora"),
+    bucket: str = Query("hour", pattern="^(hour|day)$"),
+):
+    """
+    Lee de `readings_hourly` (pre-agregado por hora) y, si bucket='day',
+    reagrupa a día. Quota-safe: 30 días ≈ 720 docs leídos en vez de ~57K crudos.
+
+    Respuesta:
+    ```json
+    {
+      "bucket": "hour", "from": "...", "to": "...",
+      "total_docs": 1920, "hourly_docs_read": 168,
+      "points": [
+        { "ts": "2026-06-18T03:00:00+00:00", "count": 80,
+          "nodes": { "interior": {"t":21.5,"h":65.2,...}, "exterior": {...} } }
+      ]
+    }
+    ```
+    """
+    now     = datetime.now(timezone.utc)
+    to_dt   = _parse_iso(to)    if to    else now
+    from_dt = _parse_iso(from_) if from_ else to_dt - timedelta(days=7)
+
+    if from_dt >= to_dt:
+        raise HTTPException(status_code=400, detail="'from' debe ser anterior a 'to'")
+
+    # Guarda de sanidad (con rollup horario el costo ya es bajo)
+    span = to_dt - from_dt
+    max_span = timedelta(days=31) if bucket == "hour" else timedelta(days=366)
+    if span > max_span:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Rango demasiado grande para bucket='{bucket}' (máx {max_span.days} días)",
+        )
+
+    if not db:
+        raise HTTPException(status_code=503, detail="Firestore no disponible")
+
+    try:
+        docs = (
+            db.collection(HOURLY_COL)
+            .where("bucket_ts", ">=", from_dt)
+            .where("bucket_ts", "<=", to_dt)
+            .order_by("bucket_ts")
+            .stream()
+        )
+
+        # groups[bucket_iso] = { "count": n, "nodes": { node: { sensor: [sum, count] } } }
+        groups: dict = {}
+        hourly_docs_read = 0
+
+        for doc in docs:
+            d = doc.to_dict()
+            bts = d.get("bucket_ts")
+            if bts is None:
+                continue
+            hourly_docs_read += 1
+            key = _bucket_start(bts, bucket).isoformat()
+            g = groups.setdefault(key, {"count": 0, "nodes": {}})
+            g["count"] += d.get("count", 0)
+
+            for node, acc in (d.get("nodes") or {}).items():
+                ga = g["nodes"].setdefault(node, {})
+                for short, _long in _ROLLUP_SENSORS:
+                    s = acc.get(f"{short}_sum")
+                    n = acc.get(f"{short}_n")
+                    if not n:
+                        continue
+                    pair = ga.setdefault(short, [0.0, 0])
+                    pair[0] += s
+                    pair[1] += n
+
+        points = []
+        total_readings = 0
+        for key in sorted(groups):
+            g = groups[key]
+            total_readings += g["count"]
+            node_avgs = {
+                node: {short: round(s / n, 2) for short, (s, n) in acc.items() if n}
+                for node, acc in g["nodes"].items()
+            }
+            points.append({"ts": key, "count": g["count"], "nodes": node_avgs})
+
+        return {
+            "bucket":           bucket,
+            "from":             from_dt.isoformat(),
+            "to":               to_dt.isoformat(),
+            "total_docs":       total_readings,    # lecturas crudas representadas
+            "hourly_docs_read": hourly_docs_read,  # costo real de lectura
+            "points":           points,
+            "source":           HOURLY_COL,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/backfill-hourly", summary="Reconstruye readings_hourly desde datos crudos")
+def backfill_hourly(
+    from_: str = Query(None, alias="from", description="ISO-8601 UTC. Default: hace 30 días"),
+    to:    str = Query(None),
+    token: str = Query(None, description="Debe coincidir con env ADMIN_TOKEN si está seteado"),
+):
+    """
+    Escanea `readings` en [from, to] y reconstruye los docs de `readings_hourly`
+    (set/overwrite, idempotente). Correr una vez tras desplegar el rollup para
+    poblar el histórico con los datos ya almacenados.
+    """
+    admin = os.getenv("ADMIN_TOKEN")
+    if admin and token != admin:
+        raise HTTPException(status_code=403, detail="token inválido")
+    if not db:
+        raise HTTPException(status_code=503, detail="Firestore no disponible")
+
+    now     = datetime.now(timezone.utc)
+    to_dt   = _parse_iso(to)    if to    else now
+    from_dt = _parse_iso(from_) if from_ else to_dt - timedelta(days=30)
+
+    try:
+        docs = (
+            db.collection("readings")
+            .where("ts", ">=", from_dt)
+            .where("ts", "<=", to_dt)
+            .order_by("ts")
+            .stream()
+        )
+
+        # buckets[(device, hour)] = { "count": n, "nodes": { node: { short: [sum, count] } } }
+        buckets: dict = {}
+        scanned = 0
+        for doc in docs:
+            d = doc.to_dict()
+            ts = d.get("ts")
+            if ts is None:
+                continue
+            scanned += 1
+            hour = _bucket_start(ts, "hour")
+            dev  = d.get("device_id", "unknown")
+            b = buckets.setdefault((dev, hour), {"count": 0, "nodes": {}})
+            b["count"] += 1
+            for node, sensors in (d.get("sensors") or {}).items():
+                acc = b["nodes"].setdefault(node, {})
+                for short, long in _ROLLUP_SENSORS:
+                    val = sensors.get(long)
+                    if val is None:
+                        continue
+                    pair = acc.setdefault(short, [0.0, 0])
+                    pair[0] += val
+                    pair[1] += 1
+
+        written = 0
+        batch = db.batch()
+        ops = 0
+        for (dev, hour), b in buckets.items():
+            nodes = {}
+            for node, acc in b["nodes"].items():
+                nd = {}
+                for short, (s, n) in acc.items():
+                    nd[f"{short}_sum"] = round(s, 4)
+                    nd[f"{short}_n"]   = n
+                nodes[node] = nd
+            doc_id = f"{dev}_{hour.strftime('%Y%m%d%H')}"
+            batch.set(db.collection(HOURLY_COL).document(doc_id), {
+                "bucket_ts": hour,
+                "device_id": dev,
+                "count":     b["count"],
+                "nodes":     nodes,
+            })
+            ops += 1
+            written += 1
+            if ops >= 400:
+                batch.commit()
+                batch = db.batch()
+                ops = 0
+        if ops:
+            batch.commit()
+
+        return {
+            "scanned":             scanned,
+            "hourly_docs_written": written,
+            "from":                from_dt.isoformat(),
+            "to":                  to_dt.isoformat(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

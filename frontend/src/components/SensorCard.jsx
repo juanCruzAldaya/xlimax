@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Thermometer, Droplets, Sun, Wind, Mountain, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Thermometer, Droplets, Sun, Wind, Mountain, Gauge, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts'
 import { SENSOR_CONFIG, calcStats } from '../data/mockData'
 
@@ -9,6 +9,7 @@ const ICONS = {
   l: Sun,
   p: Wind,
   a: Mountain,
+  v: Gauge,
 }
 
 export default function SensorCard({ sensorKey, data, rangeHours, active, onClick }) {

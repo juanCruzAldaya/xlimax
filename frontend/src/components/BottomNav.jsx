@@ -1,14 +1,14 @@
-import { LayoutDashboard, Thermometer, Droplets, Sun, Wind, Mountain, Zap, Star, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, Thermometer, Droplets, Gauge, Sun, History, BarChart2, Zap } from 'lucide-react'
 
 const NAV = [
   { id: 'overview',    label: 'Inicio',   Icon: LayoutDashboard },
   { id: 't',           label: 'Temp',     Icon: Thermometer,  dot: '#ef4444' },
   { id: 'h',           label: 'Hum',      Icon: Droplets,     dot: '#06b6d4' },
+  { id: 'vpd',         label: 'VPD',      Icon: Gauge,        dot: '#14b8a6' },
   { id: 'l',           label: 'Luz',      Icon: Sun,          dot: '#84cc16' },
-  { id: 'p',           label: 'Pres',     Icon: Wind,         dot: '#8b5cf6' },
-  { id: 'a',           label: 'Alt',      Icon: Mountain,     dot: '#ec4899' },
-  { id: 'control',     label: 'Control',  Icon: Zap },
+  { id: 'historico',   label: 'Histór.',  Icon: History },
   { id: 'analytics',   label: 'Análisis', Icon: BarChart2 },
+  { id: 'control',     label: 'Control',  Icon: Zap },
 ]
 
 export default function BottomNav({ activeView, onNavigate }) {

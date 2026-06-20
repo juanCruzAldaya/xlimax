@@ -4,7 +4,7 @@ import { SENSOR_CONFIG } from '../data/mockData'
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'https://xlimax.onrender.com'
 
-const SENSORS = ['t', 'h', 'l', 'p', 'a']
+const SENSORS = ['t', 'h', 'l', 'p', 'a', 'v']
 
 /* ── Helpers de exportación ── */
 function downloadFile(content, filename, type) {
@@ -17,7 +17,7 @@ function downloadFile(content, filename, type) {
 
 function toCSV(data, nodes) {
   const nodeHeaders = nodes.flatMap(n => [
-    `${n}_temp_C`, `${n}_hum_%`, `${n}_luz`, `${n}_presion_hPa`, `${n}_altitud_m`
+    `${n}_temp_C`, `${n}_hum_%`, `${n}_luz`, `${n}_presion_hPa`, `${n}_altitud_m`, `${n}_vpd_kPa`
   ])
   const headers = ['timestamp_utc', 'timestamp_art', ...nodeHeaders]
 
@@ -29,7 +29,7 @@ function toCSV(data, nodes) {
       art.toLocaleString('es-AR'),
       ...nodes.flatMap(n => {
         const s = d.nodes?.[n] ?? {}
-        return [s.t ?? '', s.h ?? '', s.l ?? '', s.p ?? '', s.a ?? '']
+        return [s.t ?? '', s.h ?? '', s.l ?? '', s.p ?? '', s.a ?? '', s.v ?? '']
       }),
     ]
     return cols.join(',')
@@ -40,7 +40,7 @@ function toCSV(data, nodes) {
 
 function toHTML(data, nodes, rangeLabel, globalStats) {
   const nodeHeaders = nodes.flatMap(n => [
-    `${n} T°C`, `${n} H%`, `${n} Luz`, `${n} Presión`, `${n} Altitud`
+    `${n} T°C`, `${n} H%`, `${n} Luz`, `${n} Presión`, `${n} Altitud`, `${n} VPD`
   ])
 
   const statsRows = SENSORS.map(key => {
@@ -64,7 +64,7 @@ function toHTML(data, nodes, rangeLabel, globalStats) {
       <td>${art.toLocaleString('es-AR')}</td>
       ${nodes.flatMap(n => {
         const s = d.nodes?.[n] ?? {}
-        return [s.t, s.h, s.l, s.p, s.a].map(v =>
+        return [s.t, s.h, s.l, s.p, s.a, s.v].map(v =>
           `<td>${v != null ? v : '—'}</td>`
         )
       }).join('')}
@@ -308,7 +308,7 @@ export default function AnalyticsPanel({ readings, availableNodes }) {
               <tr className="border-b border-slate-100">
                 <th className="text-left py-2 pr-4 text-slate-500">Timestamp ART</th>
                 {nodes.flatMap(node =>
-                  ['T°C', 'H%', 'Luz', 'Pres.', 'Alt.'].map(label => (
+                  ['T°C', 'H%', 'Luz', 'Pres.', 'Alt.', 'VPD'].map(label => (
                     <th key={`${node}-${label}`} className="text-right py-2 px-2 text-slate-500">
                       <span className="text-slate-300">{node}/</span>{label}
                     </th>
@@ -326,7 +326,7 @@ export default function AnalyticsPanel({ readings, availableNodes }) {
                     </td>
                     {nodes.flatMap(node => {
                       const s = d.nodes?.[node] ?? {}
-                      return [s.t, s.h, s.l, s.p, s.a].map((v, j) => (
+                      return [s.t, s.h, s.l, s.p, s.a, s.v].map((v, j) => (
                         <td key={`${node}-${j}`} className="text-right py-1.5 px-2 font-mono text-slate-700">
                           {v != null ? v : <span className="text-slate-200">—</span>}
                         </td>

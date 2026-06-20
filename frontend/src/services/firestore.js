@@ -3,6 +3,7 @@ import {
   collection, query, orderBy, limit,
   getDocs, addDoc, serverTimestamp, onSnapshot,
 } from 'firebase/firestore'
+import { vpdLeaf, vpdAir } from '../utils/vpd'
 
 const COL = 'readings'
 
@@ -19,13 +20,17 @@ function avg(values) {
 }
 
 function flatNode(s) {
-  if (!s) return { t: null, h: null, l: null, p: null, a: null }
+  if (!s) return { t: null, h: null, l: null, p: null, a: null, v: null, vair: null }
+  const t = s.temperature ?? null
+  const h = s.humidity    ?? null
   return {
-    t: s.temperature  ?? null,
-    h: s.humidity     ?? null,
+    t,
+    h,
     l: s.light        ?? null,
     p: s.pressure_hpa ?? null,
     a: s.altitude_m   ?? null,
+    v:    vpdLeaf(t, h),   // VPD foliar (offset default 2°C) — métrica derivada
+    vair: vpdAir(t, h),    // VPD de aire
   }
 }
 
@@ -50,6 +55,7 @@ function normalize(doc) {
       l: avg(vals.map(s => s.l)),
       p: avg(vals.map(s => s.p)),
       a: avg(vals.map(s => s.a)),
+      v: avg(vals.map(s => s.v)),
     }
   }
 

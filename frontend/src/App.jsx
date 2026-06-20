@@ -8,6 +8,8 @@ import StatsPanel from './components/StatsPanel'
 import ControlPanel from './components/ControlPanel'
 import AutomationPanel from './components/AutomationPanel'
 import AnalyticsPanel from './components/AnalyticsPanel'
+import VpdPanel from './components/VpdPanel'
+import HistoryPanel from './components/HistoryPanel'
 import BottomNav from './components/BottomNav'
 
 const RANGES = [
@@ -104,6 +106,16 @@ export default function App() {
           </div>
         )}
 
+        {view === 'vpd' && (
+          <div className="p-5 md:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <PageHeader title="VPD" subtitle="Déficit de presión de vapor — foliar y de aire" />
+              <NodeSelector nodes={availableNodes} selected={selectedNode} onSelect={setSelectedNode} />
+            </div>
+            <VpdPanel data={visibleData} rangeIdx={rangeIdx} onRangeChange={setRangeIdx} />
+          </div>
+        )}
+
         {view === 'analytics' && (
           <div className="p-5 md:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -114,6 +126,13 @@ export default function App() {
               readings={readings}
               availableNodes={availableNodes}
             />
+          </div>
+        )}
+
+        {view === 'historico' && (
+          <div className="p-5 md:p-8 space-y-6">
+            <PageHeader title="Históricos" subtitle="Datos agregados de todo el período almacenado" />
+            <HistoryPanel availableNodes={availableNodes} />
           </div>
         )}
 
